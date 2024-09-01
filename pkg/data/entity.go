@@ -1,9 +1,5 @@
 package data
 
-import (
-	"encoding/json"
-)
-
 type MessageType string
 
 const (
@@ -12,9 +8,10 @@ const (
 )
 
 type RouteMessage struct {
-	Type       MessageType     `json:"type"`
-	RouteID    string          `json:"route_id"`
-	QueryState json.RawMessage `json:"query_state"`
+	Type       MessageType            `json:"type"`
+	RouteID    string                 `json:"route_id"`
+	QueryState map[string]interface{} `json:"query_state"`
+	//QueryState json.RawMessage `json:"query_state"`
 }
 
 //     response_message = {
