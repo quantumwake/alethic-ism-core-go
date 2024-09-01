@@ -86,8 +86,9 @@ func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, er
 }
 
 // Publish publishes a message to the subject, either via JetStream or standard NATS.
+// func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
 func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
-	msgBytes, err := toBytes(msg)
+	data, err := toBytes(msg)
 	if err != nil {
 		return fmt.Errorf("failed to serialize message: %w", err)
 	}
@@ -97,12 +98,12 @@ func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
 	}
 
 	if r.route.JetStreamEnabled() {
-		_, err := r.js.Publish(r.route.Subject, msgBytes)
+		_, err := r.js.Publish(r.route.Subject, data)
 		if err != nil {
 			return fmt.Errorf("failed to publish message to JetStream: %w", err)
 		}
 	} else {
-		if err := r.nc.Publish(r.route.Subject, msgBytes); err != nil {
+		if err := r.nc.Publish(r.route.Subject, data); err != nil {
 			return fmt.Errorf("failed to publish message: %w", err)
 		}
 	}
@@ -160,14 +161,30 @@ func (r *NATSRoute) Disconnect(ctx context.Context) error {
 
 // toBytes converts a message to a byte slice.
 func toBytes(msg interface{}) ([]byte, error) {
+	var data []byte
+	var err error
+
 	switch v := msg.(type) {
-	case string:
-		return []byte(v), nil
 	case []byte:
-		return v, nil
+		// If it's already a byte array, use it directly
+		v = data
+	case string:
+		// if a string then turn it into bytes
+		return []byte(v), nil
+	case map[string]interface{}:
+		// If it's a map, marshal it to JSON
+		data, err = json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal map to JSON: %w", err)
+		}
 	default:
-		return json.Marshal(v)
+		// For any other type, try to marshal it to JSON
+		data, err = json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal message to JSON: %w", err)
+		}
 	}
+	return data, nil
 }
 
 // Drain drains and closes the connection gracefully.
