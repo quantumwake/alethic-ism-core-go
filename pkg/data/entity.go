@@ -15,8 +15,6 @@ type RouteMessage struct {
 	Type       MessageType     `json:"type"`
 	RouteID    string          `json:"route_id"`
 	QueryState json.RawMessage `json:"query_state"`
-
-	//CompositeKey string `json:"__composite_key__"`	// moved into query state information
 }
 
 //     response_message = {
