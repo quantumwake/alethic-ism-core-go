@@ -141,6 +141,23 @@ func (r *NATSRoute) Subscribe(ctx context.Context) error {
 	return nil
 }
 
+// Unsubscribe unsubscribes from the subject.
+func (r *NATSRoute) Unsubscribe(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.nc == nil || r.sub == nil {
+		return errors.New("not subscribed to NATS")
+	}
+
+	err := r.sub.Unsubscribe()
+	if err != nil {
+		return fmt.Errorf("failed to unsubscribe from subject: %w", err)
+	}
+
+	return nil
+}
+
 // Disconnect drains the connection and closes it.
 func (r *NATSRoute) Disconnect(ctx context.Context) error {
 	r.mu.Lock()
