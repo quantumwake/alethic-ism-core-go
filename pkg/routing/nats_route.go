@@ -24,7 +24,12 @@ type NATSRoute struct {
 }
 
 // NewNATSRoute initializes and returns a new NATSRoute instance.
-func NewNATSRoute(route *Route, callback func(route *NATSRoute, msg *nats.Msg)) *NATSRoute {
+func NewNATSRoute(route *Route) *NATSRoute {
+	return &NATSRoute{route: route, Callback: nil}
+}
+
+// NewNATSRouteWithCallback initializes and returns a new NATSRoute instance.
+func NewNATSRouteWithCallback(route *Route, callback func(route *NATSRoute, msg *nats.Msg)) *NATSRoute {
 	return &NATSRoute{route: route, Callback: callback}
 }
 
