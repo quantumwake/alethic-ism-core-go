@@ -209,6 +209,14 @@ func toBytes(msg interface{}) ([]byte, error) {
 	return data, nil
 }
 
+func (r *NATSRoute) Flush() error {
+	if r.nc == nil {
+		return errors.New("not connected to NATS")
+	}
+
+	return r.nc.Flush()
+}
+
 // Drain drains and closes the connection gracefully.
 func (r *NATSRoute) Drain(ctx context.Context) error {
 	if r.nc == nil || !r.nc.IsConnected() {
