@@ -19,7 +19,7 @@ type NATSRoute struct {
 	mu   sync.Mutex
 	once sync.Once
 
-	Callback func(*NATSRoute, *nats.Msg)
+	Callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)
 	//callback nats.MsgHandler
 }
 
@@ -29,7 +29,7 @@ func NewNATSRoute(route *Route) *NATSRoute {
 }
 
 // NewNATSRouteWithCallback initializes and returns a new NATSRoute instance.
-func NewNATSRouteWithCallback(route *Route, callback func(route *NATSRoute, msg *nats.Msg)) *NATSRoute {
+func NewNATSRouteWithCallback(route *Route, callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)) *NATSRoute {
 	return &NATSRoute{route: route, Callback: callback}
 }
 
@@ -128,7 +128,7 @@ func (r *NATSRoute) Subscribe(ctx context.Context) error {
 			log.Printf("no callback function defined for message: %v on subject: %s", msg.Data, msg.Subject)
 			return
 		}
-		r.Callback(r, msg)
+		r.Callback(ctx, r, msg)
 	}
 
 	var err error
