@@ -61,6 +61,16 @@ func (da *Access) FindRouteByProcessorAndDirection(processorID string, direction
 	return processorStates, result.Error
 }
 
+func (da *Access) FindRouteByStateAndDirection(stateID string, direction ProcessorStateDirection) ([]ProcessorState, error) {
+	var processorStates []ProcessorState
+
+	result := da.DB.
+		Where("state_id = ? AND direction = ?", stateID, string(direction)).
+		Find(&processorStates)
+
+	return processorStates, result.Error
+}
+
 // Usage methods
 func (da *Access) InsertUsage(usage *Usage) error {
 	db := da.DB.Create(usage)
