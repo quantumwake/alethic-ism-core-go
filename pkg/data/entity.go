@@ -35,7 +35,7 @@ type MonitorMessage struct {
 	Type      MessageType         `json:"type"`
 	RouteID   string              `json:"route_id"`
 	Status    ProcessorStatusCode `json:"status"`
-	Exception *string             `json:"exception,omitempty"`
+	Exception string              `json:"exception,omitempty"`
 	Data      interface{}         `json:"data"`
 }
 
