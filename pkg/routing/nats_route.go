@@ -54,6 +54,7 @@ func (r *NATSRoute) Connect(ctx context.Context) error {
 			return fmt.Errorf("failed to initialize JetStream: %w", err)
 		}
 
+		//r.js.PullSubscribe()
 		if _, err := r.js.StreamInfo(*r.route.Name); errors.Is(err, nats.ErrStreamNotFound) {
 			_, err := r.js.AddStream(&nats.StreamConfig{
 				Name:     *r.route.Name,
@@ -131,6 +132,9 @@ func (r *NATSRoute) Subscribe(ctx context.Context) error {
 		r.Callback(ctx, r, msg)
 	}
 
+	if r.route.JetStreamEnabled() {
+
+	}
 	var err error
 	if r.route.Queue != nil {
 		r.sub, err = r.nc.QueueSubscribe(r.route.Subject, *r.route.Queue, callback)

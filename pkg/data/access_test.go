@@ -1,6 +1,10 @@
 package data
 
-import "testing"
+import (
+	"github.com/quantumwake/alethic-ism-core-go/pkg/model"
+	"testing"
+	"time"
+)
 
 var (
 	dataAccess *Access = NewDataAccess("host=localhost port=5432 user=postgres password=postgres1 dbname=postgres sslmode=disable")
@@ -25,13 +29,30 @@ func TestAccess_FindRouteByProcessorAndDirection(t *testing.T) {
 
 	println(route.Direction)
 
-	outputRoutes, err := dataAccess.FindRouteByProcessorAndDirection(route.ProcessorID, DirectionOutput)
+	outputRoutes, err := dataAccess.FindRouteByProcessorAndDirection(route.ProcessorID, model.DirectionOutput)
 
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
 	println(outputRoutes[0].Direction)
+}
+
+func TestAccess_InsertTrace(t *testing.T) {
+	trace := &model.Trace{
+		Partition:  "27bce142-8713-413a-930b-fc2783bab872", // for example a project id can be the partition of the logger
+		Reference:  "7c2ea117-b281-4b36-add9-e582d1a14fc2", // component being logged, a reference such as (state id, template id, processor id, etc)
+		Action:     "some_mock_action",
+		ActionTime: time.Now().UTC(),
+		Message:    "some mock test message content",
+		Level:      model.LogLevelInfo,
+	}
+
+	err := dataAccess.InsertTrace(trace)
+
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
 }
 
 //
