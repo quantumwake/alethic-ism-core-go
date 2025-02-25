@@ -88,7 +88,7 @@ type MockMetaData struct {
 }
 
 func TestBackendStorage_NewDatabaseBackendStorage(t *testing.T) {
-	db := vault.NewDatabaseBackendStorage(test.DSN)
+	db := vault.NewDatabaseStorage(test.DSN)
 	require.NotNil(t, db)
 }
 
@@ -109,7 +109,7 @@ func TestBackendStorage_InsertOrUpdateConfigMap(t *testing.T) {
 		OwnerID: "test.user",
 	}
 
-	db := vault.NewDatabaseBackendStorage(test.DSN)
+	db := vault.NewDatabaseStorage(test.DSN)
 	require.NotNil(t, db)
 
 	// clean up the test data first
@@ -133,14 +133,15 @@ func TestBackendStorage_InsertOrUpdateConfigMap(t *testing.T) {
 }
 
 func TestBackendStorage_FindConfigMap_NotExist(t *testing.T) {
-	db := vault.NewDatabaseBackendStorage(test.DSN)
+	db := vault.NewDatabaseStorage(test.DSN)
 	configMap, err := db.FindConfig("non-existent-ID")
 	require.Error(t, err)
 	require.Nil(t, configMap)
 }
 
 func TestDatabaseBackendStorage_InsertOrUpdateVault(t *testing.T) {
-	db := vault.NewDatabaseBackendStorage(test.DSN)
+	db := vault.NewDatabaseStorage(test.DSN)
 	vaultEntry := &vault.Vault{}
-	vault, err := db.InsertOrUpdateVault(vault)
+	err := db.InsertOrUpdateVault(vaultEntry)
+	require.NoError(t, err)
 }
