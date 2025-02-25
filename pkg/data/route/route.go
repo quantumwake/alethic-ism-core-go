@@ -2,7 +2,7 @@ package route
 
 import (
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/model"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/processor_state"
 )
 
 type BackendStorage struct {
@@ -16,8 +16,8 @@ func NewBackend(dsn string) *BackendStorage {
 }
 
 // FindRouteByID methods
-func (da *BackendStorage) FindRouteByID(id string) (*model.ProcessorState, error) {
-	var processorState model.ProcessorState
+func (da *BackendStorage) FindRouteByID(id string) (*processor_state.ProcessorState, error) {
+	var processorState processor_state.ProcessorState
 	result := da.DB.Where("id = ?", id).First(&processorState)
 	if result.Error != nil {
 		return nil, result.Error
@@ -26,8 +26,8 @@ func (da *BackendStorage) FindRouteByID(id string) (*model.ProcessorState, error
 }
 
 // FindRouteByProcessorAndDirection finds all ProcessorStates for a given processor ID and direction
-func (da *BackendStorage) FindRouteByProcessorAndDirection(processorID string, direction model.ProcessorStateDirection) ([]model.ProcessorState, error) {
-	var processorStates []model.ProcessorState
+func (da *BackendStorage) FindRouteByProcessorAndDirection(processorID string, direction processor_state.ProcessorStateDirection) ([]processor_state.ProcessorState, error) {
+	var processorStates []processor_state.ProcessorState
 
 	result := da.DB.
 		Where("processor_id = ? AND direction = ?", processorID, string(direction)).
@@ -37,8 +37,8 @@ func (da *BackendStorage) FindRouteByProcessorAndDirection(processorID string, d
 }
 
 // FindRouteByStateAndDirection find routes by state id and the direction it is flowing.
-func (da *BackendStorage) FindRouteByStateAndDirection(stateID string, direction model.ProcessorStateDirection) ([]model.ProcessorState, error) {
-	var processorStates []model.ProcessorState
+func (da *BackendStorage) FindRouteByStateAndDirection(stateID string, direction processor_state.ProcessorStateDirection) ([]processor_state.ProcessorState, error) {
+	var processorStates []processor_state.ProcessorState
 
 	result := da.DB.
 		Where("state_id = ? AND direction = ?", stateID, string(direction)).

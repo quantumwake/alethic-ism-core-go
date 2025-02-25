@@ -3,13 +3,11 @@ package s3
 import (
 	"bytes"
 	"context"
-	"errors"
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"io"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -18,22 +16,34 @@ type Client struct {
 	BucketName string
 }
 
-func NewS3Client(bucketName string, region string, endpoint string, accessKey string, secretKey string) (*S3Client, error) {
-	if endpoint == "" || accessKey == "" || secretKey == "" {
-		return nil, errors.New("endpoint, access key, and secret key are required")
-	}
+type ClientConfig struct {
+	BucketName string
+	Region     string
+	Endpoint   string
+	AccessKey  string
+	SecretKey  string
+}
 
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		return aws.Endpoint{
-			URL:           endpoint, // DigitalOcean Spaces endpoint
-			SigningRegion: region,   // Region is required for signing
-		}, nil
-	})
+func NewClient(ctx context.Context, clientConfig ClientConfig) (*Client, error) {
+	//if endpoint == "" || accessKey == "" || secretKey == "" {
+	//	return nil, errors.New("endpoint, access key, and secret key are required")
+	//}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
-		config.WithEndpointResolver(customResolver),
+	//// TODO FIX THIS
+	//resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+	//	return aws.Endpoint{
+	//		URL:           endpoint, // DigitalOcean Spaces endpoint
+	//		SigningRegion: region,   // Region is required for signing
+	//	}, nil
+	//})
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(clientConfig.Region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			clientConfig.AccessKey,
+			clientConfig.SecretKey, "")),
+
+		//config.WithEndpointResolver(customResolver),
 	)
 	if err != nil {
 		return nil, err
@@ -43,9 +53,9 @@ func NewS3Client(bucketName string, region string, endpoint string, accessKey st
 		o.UsePathStyle = true // Path-style addressing for DigitalOcean Spaces
 	})
 
-	return &S3Client{
+	return &Client{
 		Client:     client,
-		BucketName: bucketName,
+		BucketName: clientConfig.BucketName,
 	}, nil
 }
 
