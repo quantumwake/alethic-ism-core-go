@@ -16,6 +16,13 @@ type DatabaseStorage struct {
 	Access *data.Access
 }
 
+func NewDatabaseStorageFromEnvDSN() *DatabaseStorage {
+	storage := &DatabaseStorage{
+		Access: data.NewDataAccessFromEnvDSN(),
+	}
+	return storage
+}
+
 func (da *DatabaseStorage) Query(query dsl.StateQuery) ([]dsl.StateQueryResult, error) {
 	// Validate UUID
 	if err := utils.ValidateUUID(query.StateID); err != nil {
