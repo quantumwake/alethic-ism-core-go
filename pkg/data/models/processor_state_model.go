@@ -1,7 +1,23 @@
-package processor_state
+package models
 
+// ProcessorStateDirection represents the direction of the processor <> state (the state is an input to the processor, or an output to the processor).
 type ProcessorStateDirection string
+
+// ProcessorStatus represents the possible statuses of a processor and, the processor <> state association.
 type ProcessorStatus string
+
+// Enum-like constants for ProcessorStatus
+const (
+	Created   ProcessorStatus = "CREATED"
+	Route     ProcessorStatus = "ROUTE"
+	Routed    ProcessorStatus = "ROUTED"
+	Queued    ProcessorStatus = "QUEUED"
+	Running   ProcessorStatus = "RUNNING"
+	Terminate ProcessorStatus = "TERMINATE"
+	Stopped   ProcessorStatus = "STOPPED"
+	Completed ProcessorStatus = "COMPLETED"
+	Failed    ProcessorStatus = "FAILED"
+)
 
 const (
 	DirectionInput  ProcessorStateDirection = "INPUT"
@@ -22,5 +38,5 @@ type ProcessorState struct {
 
 // TableName overrides the table name used by GORM
 func (ProcessorState) TableName() string {
-	return "processor_state"
+	return "models"
 }
