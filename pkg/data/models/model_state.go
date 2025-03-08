@@ -57,6 +57,7 @@ func (State) TableName() string {
 	return "state"
 }
 
+// DataColumnDefinition represents the structure of the state_column table
 type DataColumnDefinition struct {
 	// Column: id
 	// Type: BIGINT (int64)

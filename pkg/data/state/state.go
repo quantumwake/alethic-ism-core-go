@@ -79,6 +79,15 @@ func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[str
 	return definitionsMap, nil
 }
 
+func (da *BackendStorage) FindConfigByStateID(id string) (*models.Config, error) {
+	var config models.Config
+	result := da.DB.Where("state_id = ?", id).First(&config)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &config, nil
+}
+
 // FindStateFull finds a state and all associated data columns and data rows
 func (da *BackendStorage) FindStateFull(id string) (*models.State, error) {
 	state, err := da.FindState(id)

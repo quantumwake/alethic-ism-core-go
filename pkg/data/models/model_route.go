@@ -9,8 +9,12 @@ const (
 	MonitorProcessorState MessageType = "models"
 )
 
+// Data represents an incoming JSON event.
+type Data map[string]interface{}
+
 type RouteMessage struct {
-	Type       MessageType              `json:"type"`
-	RouteID    string                   `json:"route_id"`
-	QueryState []map[string]interface{} `json:"query_state"`
+	Type    MessageType `json:"type"`
+	RouteID string      `json:"route_id"`
+	//QueryState []map[string]interface{} `json:"query_state"`
+	QueryState Data `json:"query_state"`
 }
