@@ -10,11 +10,11 @@ const (
 )
 
 // Data represents an incoming JSON event.
-type Data map[string]interface{}
+type Data map[string]any
 
 type RouteMessage struct {
 	Type    MessageType `json:"type"`
 	RouteID string      `json:"route_id"`
 	//QueryState []map[string]interface{} `json:"query_state"`
-	QueryState Data `json:"query_state"`
+	QueryState []Data `json:"query_state"`
 }
