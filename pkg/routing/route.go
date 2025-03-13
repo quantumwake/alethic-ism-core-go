@@ -3,6 +3,7 @@ package routing
 import (
 	"errors"
 	"fmt"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
@@ -61,6 +62,15 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.BuildRouteMaps()
 
 	return &config, nil
+}
+
+func LoadConfigFromEnv() (*Config, error) {
+	// load the nats routing table from environment variable
+	config, err := LoadConfig(utils.StringFromEnvWithDefault("ROUTING_FILE", "../routing-nats.yaml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load routing config: %v", err)
+	}
+	return config, nil
 }
 
 // BuildRouteMaps builds hash maps for selector and subject for fast lookups
