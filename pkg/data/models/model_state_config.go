@@ -22,3 +22,7 @@ type Config struct {
 	FlagAutoRouteOutputState          *bool                `json:"flag_auto_route_output_state,omitempty"`
 	FlagAutoRouteOutputStateAfterSave *bool                `json:"flag_auto_route_output_state_after_save,omitempty"`
 }
+
+func (Config) TableName() string {
+	return "state_config"
+}

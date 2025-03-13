@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/state"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,20 @@ func TestAccess_FindState(t *testing.T) {
 	state, err := ub.FindStateFull(id)
 	require.NoError(t, err)
 	require.NotNil(t, state)
+}
+
+func TestAccess_InsertState(t *testing.T) {
+	project := &models.Project{
+		ID: "0267a05b-8cad-49b7-8c61-49ffc221277d",
+	}
+
+	state := &models.State{
+		ID: "0267a05b-8cad-49b7-8c61-49ffc221277d",
+	}
+	err := ub.InsertState(state)
+	require.NoError(t, err)
+	require.NotNil(t, state.ID)
+	require.NoError(t, ub.DeleteState(state.ID))
 }
 
 //func TestAccess_InsertTrace(t *testing.T) {
