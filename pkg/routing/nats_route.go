@@ -6,12 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/routing/config"
 	"log"
 	"sync"
 )
 
+// TODO need to make this into an interface and abstract out the backend message routing away from NATS specifics
+
+//type Route interface {
+//	func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, error) {
+//}
+
 type NATSRoute struct {
-	route *Route
+	//Route
+	route *config.Route
 
 	nc   *nats.Conn
 	js   nats.JetStreamContext
@@ -24,12 +32,12 @@ type NATSRoute struct {
 }
 
 // NewNATSRoute initializes and returns a new NATSRoute instance.
-func NewNATSRoute(route *Route) *NATSRoute {
+func NewNATSRoute(route *config.Route) *NATSRoute {
 	return &NATSRoute{route: route, Callback: nil}
 }
 
 // NewNATSRouteWithCallback initializes and returns a new NATSRoute instance.
-func NewNATSRouteWithCallback(route *Route, callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)) *NATSRoute {
+func NewNATSRouteWithCallback(route *config.Route, callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)) *NATSRoute {
 	return &NATSRoute{route: route, Callback: callback}
 }
 
