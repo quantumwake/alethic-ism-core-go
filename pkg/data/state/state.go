@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	"gorm.io/gorm/clause"
 	"log"
 )
 
@@ -25,6 +26,14 @@ func (da *BackendStorage) FindState(id string) (*models.State, error) {
 		return nil, result.Error
 	}
 	return &state, nil
+}
+
+// InsertOrUpdate inserts a state if it does not exist or updates the state if it does.
+func (da *BackendStorage) InsertOrUpdate(state *models.State) error {
+	return da.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"state_type", "count"}),
+	}).Create(state).Error
 }
 
 // FindDataRowColumnDataByColumnID finds DataRowColumnData by column ID.

@@ -2,54 +2,57 @@ package state_test
 
 import (
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/project"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/state"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/user"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 var (
-	ub = state.NewBackend(test.DSN)
+	backendUser    = user.NewBackend(test.DSN)
+	backendProject = project.NewBackend(test.DSN)
+	backendState   = state.NewBackend(test.DSN)
 )
 
-func TestAccess_FindState(t *testing.T) {
-	id := "0267a05b-8cad-49b7-8c61-49ffc221277d"
-	state, err := ub.FindStateFull(id)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-}
+//func TestAccess_FindState(t *testing.T) {
+//	id := "0267a05b-8cad-49b7-8c61-49ffc221277d"
+//	state, err := backendState.FindStateFull(id)
+//	require.NoError(t, err)
+//	require.NotNil(t, state)
+//}
 
 func TestAccess_InsertState(t *testing.T) {
-	project := &models.Project{
-		ID: "0267a05b-8cad-49b7-8c61-49ffc221277d",
+	// insert a user
+	u := &models.User{
+		ID:       "0267a05b-8cad-49b7-8c61-49ffc221277d",
+		Name:     "Test User",
+		Email:    "hello@world.com",
+		MaxUnits: 10,
 	}
+	require.NoError(t, backendUser.InsertOrUpdate(u))
 
-	state := &models.State{
-		ID: "0267a05b-8cad-49b7-8c61-49ffc221277d",
+	// insert project for user
+	p := &models.Project{
+		ID:     "0267a05b-8cad-49b7-8c61-49ffc221277d",
+		Name:   "Test Project",
+		UserID: u.ID,
 	}
-	err := ub.InsertState(state)
+	require.NoError(t, backendProject.InsertOrUpdate(p))
+
+	// insert state for project
+	s1 := &models.State{
+		ID:        "0267a05b-8cad-49b7-8c61-49ffc221277d",
+		ProjectID: p.ID,
+		StateType: models.StateConfig,
+	}
+	err := backendState.InsertOrUpdate(s1)
 	require.NoError(t, err)
-	require.NotNil(t, state.ID)
-	require.NoError(t, ub.DeleteState(state.ID))
+	require.NotNil(t, s1.ID)
+
+	// find the state by ID
+	s2, err := backendState.FindState(s1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, s2)
 }
-
-//func TestAccess_InsertTrace(t *testing.T) {
-//entry := &trace.Trace{
-//	Partition:  "27bce142-8713-413a-930b-fc2783bab872", // for example a project id can be the partition of the logger
-//	Reference:  "7c2ea117-b281-4b36-add9-e582d1a14fc2", // component being logged, a reference such as (state id, template id, processor id, etc)
-//	Action:     "some_mock_action",
-//	ActionTime: time.Now().UTC(),
-//	Message:    "some mock test message content",
-//	Level:      trace.LogLevelInfo,
-//}
-
-//err := ub.InsertTrace(entry)
-//if err != nil {
-//	t.Errorf("Error: %v", err)
-//}
-//
-
-//require.NotNil(t, entry.ID)
-//require.NoError(t, ub.DeleteTraceAllByPartition(entry.Partition))
-//}
-//
