@@ -19,7 +19,7 @@ import (
 
 type NATSRoute struct {
 	//Route
-	route *config.Route
+	Config *config.Route
 
 	nc   *nats.Conn
 	js   nats.JetStreamContext
@@ -33,12 +33,12 @@ type NATSRoute struct {
 
 // NewNATSRoute initializes and returns a new NATSRoute instance.
 func NewNATSRoute(route *config.Route) *NATSRoute {
-	return &NATSRoute{route: route, Callback: nil}
+	return &NATSRoute{Config: route, Callback: nil}
 }
 
 // NewNATSRouteWithCallback initializes and returns a new NATSRoute instance.
 func NewNATSRouteWithCallback(route *config.Route, callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)) *NATSRoute {
-	return &NATSRoute{route: route, Callback: callback}
+	return &NATSRoute{Config: route, Callback: callback}
 }
 
 // Connect establishes a connection to the NATS server, initializing JetStream if enabled.
@@ -51,22 +51,22 @@ func (r *NATSRoute) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	r.nc, err = nats.Connect(r.route.URL)
+	r.nc, err = nats.Connect(r.Config.URL)
 	if err != nil {
 		return fmt.Errorf("failed to connect to NATS: %w", err)
 	}
 
-	if r.route.JetStreamEnabled() {
+	if r.Config.JetStreamEnabled() {
 		r.js, err = r.nc.JetStream()
 		if err != nil {
 			return fmt.Errorf("failed to initialize JetStream: %w", err)
 		}
 
 		//r.js.PullSubscribe()
-		if _, err := r.js.StreamInfo(*r.route.Name); errors.Is(err, nats.ErrStreamNotFound) {
+		if _, err := r.js.StreamInfo(*r.Config.Name); errors.Is(err, nats.ErrStreamNotFound) {
 			_, err := r.js.AddStream(&nats.StreamConfig{
-				Name:     *r.route.Name,
-				Subjects: []string{r.route.Subject},
+				Name:     *r.Config.Name,
+				Subjects: []string{r.Config.Subject},
 			})
 			if err != nil {
 				return fmt.Errorf("failed to add stream: %w", err)
@@ -76,7 +76,7 @@ func (r *NATSRoute) Connect(ctx context.Context) error {
 		}
 	}
 
-	log.Printf("Connected to NATS: %v, subject: %s\n", r.route.Name, r.route.Subject)
+	log.Printf("Connected to NATS: %v, subject: %s\n", r.Config.Name, r.Config.Subject)
 	return nil
 }
 
@@ -91,7 +91,7 @@ func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, er
 		return nil, err
 	}
 
-	resp, err := r.nc.RequestWithContext(ctx, r.route.Subject, msgBytes)
+	resp, err := r.nc.RequestWithContext(ctx, r.Config.Subject, msgBytes)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -111,13 +111,13 @@ func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
 		return err
 	}
 
-	if r.route.JetStreamEnabled() {
-		_, err := r.js.Publish(r.route.Subject, data)
+	if r.Config.JetStreamEnabled() {
+		_, err := r.js.Publish(r.Config.Subject, data)
 		if err != nil {
 			return fmt.Errorf("failed to publish message to JetStream: %w", err)
 		}
 	} else {
-		if err := r.nc.Publish(r.route.Subject, data); err != nil {
+		if err := r.nc.Publish(r.Config.Subject, data); err != nil {
 			return fmt.Errorf("failed to publish message: %w", err)
 		}
 	}
@@ -131,7 +131,7 @@ func (r *NATSRoute) Subscribe(ctx context.Context) error {
 		return err
 	}
 
-	// wrap the callback message such that we also get the nats route that it was received on
+	// wrap the callback message such that we also get the nats Config that it was received on
 	callback := func(msg *nats.Msg) {
 		if r.Callback == nil {
 			log.Printf("no callback function defined for message: %v on subject: %s", msg.Data, msg.Subject)
@@ -140,21 +140,21 @@ func (r *NATSRoute) Subscribe(ctx context.Context) error {
 		r.Callback(ctx, r, msg)
 	}
 
-	if r.route.JetStreamEnabled() {
+	if r.Config.JetStreamEnabled() {
 
 	}
 	var err error
-	if r.route.Queue != nil {
-		r.sub, err = r.nc.QueueSubscribe(r.route.Subject, *r.route.Queue, callback)
+	if r.Config.Queue != nil {
+		r.sub, err = r.nc.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback)
 	} else {
-		r.sub, err = r.nc.Subscribe(r.route.Subject, callback)
+		r.sub, err = r.nc.Subscribe(r.Config.Subject, callback)
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to subject: %w", err)
 	}
 
-	log.Printf("Subscribed to subject: %s\n", r.route.Subject)
+	log.Printf("Subscribed to subject: %s\n", r.Config.Subject)
 	return nil
 }
 
