@@ -28,8 +28,8 @@ func (da *BackendStorage) FindState(id string) (*models.State, error) {
 	return &state, nil
 }
 
-// InsertOrUpdate inserts a state if it does not exist or updates the state if it does.
-func (da *BackendStorage) InsertOrUpdate(state *models.State) error {
+// UpsertState inserts a state if it does not exist or updates the state if it does.
+func (da *BackendStorage) UpsertState(state *models.State) error {
 	return da.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"state_type", "count"}),
@@ -86,15 +86,6 @@ func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[str
 	}
 
 	return definitionsMap, nil
-}
-
-func (da *BackendStorage) FindConfigByStateID(id string) (*models.Config, error) {
-	var config models.Config
-	result := da.DB.Where("state_id = ?", id).First(&config)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return &config, nil
 }
 
 // FindStateFull finds a state and all associated data columns and data rows

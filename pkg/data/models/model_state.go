@@ -27,23 +27,24 @@ type State0 struct {
 	StateType         string                          `json:"state_type,omitempty"`
 }
 
-type StateType string
-
-const (
-	StateConfig          = StateType("StateConfig")
-	StateConfigLM        = StateType("StateConfigLM")
-	StateConfigVisual    = StateType("StateConfigVisual")
-	StateConfigCode      = StateType("StateConfigCode")
-	StateConfigStream    = StateType("StateConfigStream")
-	StateConfigAudio     = StateType("StateConfigAudio")
-	StateConfigUserInput = StateType("StateConfigUserInput")
-)
+//
+//type StateType string
+//
+//const (
+//	StateConfigBasic     = StateType("StateConfig")
+//	StateConfigLM        = StateType("StateConfigLM")
+//	StateConfigVisual    = StateType("StateConfigVisual")
+//	StateConfigCode      = StateType("StateConfigCode")
+//	StateConfigStream    = StateType("StateConfigStream")
+//	StateConfigAudio     = StateType("StateConfigAudio")
+//	StateConfigUserInput = StateType("StateConfigUserInput")
+//)
 
 type State struct {
-	ID        string    `gorm:"column:id;type:varchar(36);primaryKey;not null"`
-	ProjectID string    `gorm:"column:project_id;type:varchar(36);not null"`
-	StateType StateType `gorm:"column:state_type;type:varchar(32);null"` // Allow null string
-	Count     int       `gorm:"column:count;type:integer;not null;default:0"`
+	ID        string `gorm:"column:id;type:varchar(36);primaryKey;not null"`
+	ProjectID string `gorm:"column:project_id;type:varchar(36);not null"`
+	Type      Type   `gorm:"column:state_type;type:varchar(32);null"` // Allow null string
+	Count     int    `gorm:"column:count;type:integer;not null;default:0"`
 
 	// many-to-one references
 	Config  interface{}                      `gorm:"-"` // Allow null JSON
