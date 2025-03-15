@@ -10,18 +10,24 @@ const (
 	DefinitionTemplateColumns        DefinitionType = "template_columns"
 )
 
-// DataKeyDefinition is equivalent to Python's StateDataKeyDefinition
-type DataKeyDefinition struct {
-	ID             *int64         `gorm:"column:id;primaryKey;autoIncrement" json:"id,omitempty"`
-	StateID        string         `gorm:"column:state_id;type:varchar(36);not null" json:"state_id,omitempty"`
-	Name           string         `gorm:"column:name;type:varchar(255);not null" json:"name"`
-	Alias          string         `gorm:"column:alias;type:varchar(255);null" json:"alias,omitempty"`
-	Required       *bool          `gorm:"column:required;type:boolean;default:true" json:"required,omitempty"`
+// ColumnKeyDefinition is equivalent to Python's StateDataKeyDefinition
+type ColumnKeyDefinition struct {
+	ID      *int64 `gorm:"column:id;primaryKey;autoIncrement" json:"id,omitempty"`
+	StateID string `gorm:"column:state_id;type:varchar(36);not null" json:"state_id,omitempty"`
+	Name    string `gorm:"column:name;type:varchar(255);not null" json:"name"`
+
+	// TODO do we need alias?
+	Alias string `gorm:"column:alias;type:varchar(255);null" json:"alias,omitempty"`
+
+	// TODO do we need these?
+	Required *bool `gorm:"column:required;type:boolean;default:true" json:"required,omitempty"`
+
+	// TODO - I suppose a key column can be a callable field where the value is derived off of a function call.
 	Callable       *bool          `gorm:"column:callable;type:boolean;default:false" json:"callable,omitempty"`
 	DefinitionType DefinitionType `gorm:"column:definition_type;type:varchar(50);not null" json:"definition_type"`
 }
 
-// TableName returns the table name for the DataKeyDefinition model
-func (DataKeyDefinition) TableName() string {
+// TableName returns the table name for the StateColumnKeyDefinition model
+func (ColumnKeyDefinition) TableName() string {
 	return "state_column_key_definition"
 }

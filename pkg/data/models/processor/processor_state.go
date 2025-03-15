@@ -1,4 +1,4 @@
-package models
+package processor
 
 // ProcessorStateDirection represents the direction of the processor <> state (the state is an input to the processor, or an output to the processor).
 type ProcessorStateDirection string

@@ -1,7 +1,5 @@
 package state
 
-import "github.com/quantumwake/alethic-ism-core-go/pkg/repository/state"
-
 // BaseConfig is equivalent to Python's BaseStateConfig
 type BaseConfig struct {
 	Name         string `json:"name,omitempty"`
@@ -9,17 +7,20 @@ type BaseConfig struct {
 
 }
 
-// StateConfig is equivalent to StateConfig definition as defined in the alethic-ism-core (python) module, but slightly different representation.
-// TODO probably rip the state config out and replace it with something more robust and easier to understand.
-type StateConfig struct {
-	BaseConfig
-	DataKeyDefinitions map[state.DefinitionType][]*state.DataKeyDefinition `json:"key_definitions,omitempty"`
-	Attributes         map[state.StateAttribute]any                        `json:"attributes"` /// TODO maybe use the ConfigMap (from the vault pkg) instead of having a separate state config map
+type ColumnKeyDefinitions map[DefinitionType][]*ColumnKeyDefinition
+type ConfigAttributes map[StateAttribute]any
 
-	//PrimaryKey                        []*DataKeyDefinition `json:"primary_key,omitempty"`
-	//QueryStateInheritance             []*DataKeyDefinition `json:"query_state_inheritance,omitempty"`
-	//RemapQueryStateColumns            []*DataKeyDefinition `json:"remap_query_state_columns,omitempty"`
-	//TemplateColumns                   []*DataKeyDefinition `json:"template_columns,omitempty"`
+// Config is equivalent to StateConfig definition as defined in the alethic-ism-core (python) module, but slightly different representation.
+// TODO probably rip the state config out and replace it with something more robust and easier to understand.
+type Config struct {
+	BaseConfig
+	KeyDefinitions ColumnKeyDefinitions `json:"key_definitions,omitempty"`
+	Attributes     ConfigAttributes     `json:"attributes"` /// TODO maybe use the ConfigMap (from the vault pkg) instead of having a separate state config map
+
+	//PrimaryKey                        []*StateColumnKeyDefinition `json:"primary_key,omitempty"`
+	//QueryStateInheritance             []*StateColumnKeyDefinition `json:"query_state_inheritance,omitempty"`
+	//RemapQueryStateColumns            []*StateColumnKeyDefinition `json:"remap_query_state_columns,omitempty"`
+	//TemplateColumns                   []*StateColumnKeyDefinition `json:"template_columns,omitempty"`
 
 }
 
@@ -31,8 +32,8 @@ type StateConfig struct {
 // processor understands what fields to use to join the two stream together.
 //
 // TODO: will likely change this completely, for now it will do (e.g., use a json block to represent the state configuration)
-func (sc *StateConfig) GetDataKeyDefinitions(definitionType state.DefinitionType) []*state.DataKeyDefinition {
-	definitions, ok := sc.DataKeyDefinitions[definitionType]
+func (sc *Config) GetDataKeyDefinitions(definitionType DefinitionType) []*ColumnKeyDefinition {
+	definitions, ok := sc.KeyDefinitions[definitionType]
 	if ok {
 		return definitions
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/project"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/user"
+	user2 "github.com/quantumwake/alethic-ism-core-go/pkg/repository/user"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -15,7 +16,7 @@ var (
 )
 
 func TestBackendStorage_InsertOrUpdate(t *testing.T) {
-	usr := &user.User{
+	usr := &user2.User{
 		ID:       "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		Name:     "Test User",
 		Email:    "hello@world.com",
@@ -27,7 +28,7 @@ func TestBackendStorage_InsertOrUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// create a a list of projects
-	projects := []user.Project{
+	projects := []user2.Project{
 		{ID: "0267a05b-8cad-49b7-8c61-49ffc221277a", UserID: usr.ID, Name: "Test Project 1"},
 		{ID: "0267a05b-8cad-49b7-8c61-49ffc221277b", UserID: usr.ID, Name: "Test Project 2"},
 	}

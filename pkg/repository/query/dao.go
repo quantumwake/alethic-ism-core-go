@@ -1,9 +1,9 @@
-package data
+package state_query
 
 import (
 	"fmt"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/query/dsl"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/query/dsl"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 )
 
@@ -11,19 +11,19 @@ type Storage interface {
 	Query(query dsl.StateQuery) ([]dsl.StateQueryResult, error)
 }
 
-type DatabaseStorage struct {
+type BackendStorage struct {
 	Storage
-	Access *data.Access
+	Access *repository.Access
 }
 
-func NewDatabaseStorageFromEnvDSN() *DatabaseStorage {
-	storage := &DatabaseStorage{
-		Access: data.NewDataAccessFromEnvDSN(),
+func NewBackend(dsn string) *BackendStorage {
+	storage := &BackendStorage{
+		Access: repository.NewDataAccess(dsn),
 	}
 	return storage
 }
 
-func (da *DatabaseStorage) Query(query dsl.StateQuery) ([]dsl.StateQueryResult, error) {
+func (da *BackendStorage) Query(query dsl.StateQuery) ([]dsl.StateQueryResult, error) {
 	// Validate UUID
 	if err := utils.ValidateUUID(query.StateID); err != nil {
 		return nil, fmt.Errorf("invalid UUID: %v", err)
@@ -37,9 +37,12 @@ func (da *DatabaseStorage) Query(query dsl.StateQuery) ([]dsl.StateQueryResult, 
 
 	// Execute the final query to get the results
 	var results []dsl.StateQueryResult
-	if err := da.Access.DB.Raw(dataSQL, dataArgs...).Scan(&results).Error; err != nil {
+	if err = da.Access.Query(dataSQL, results, dataArgs); err != nil {
 		return nil, fmt.Errorf("failed to fetch data values: %v", err)
 	}
+
+	//if err := da.Access.DB.Raw(dataSQL, dataArgs...).Scan(&results).Error; err != nil {
+	//}
 
 	return results, nil
 }

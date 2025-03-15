@@ -11,6 +11,10 @@ const (
 	StateStream = Type("StateConfigStream")
 )
 
+type Data map[string]*DataRowColumnData
+type Columns map[string]*DataColumnDefinition
+type Indices map[string]*DataColumnIndex
+
 // State primary state entity.
 type State struct {
 	ID        string `gorm:"column:id;type:varchar(36);primaryKey;not null"`
@@ -19,10 +23,10 @@ type State struct {
 	Count     int    `gorm:"column:count;type:integer;not null;default:0"`
 
 	// many-to-one references
-	Config  interface{}                      `gorm:"-"` // Allow null JSON
-	Columns map[string]*DataColumnDefinition `gorm:"-"` // Ignored by GORM
-	Data    map[string]*DataRowColumnData    `gorm:"-"` // Ignored by GORM
-	Mapping map[string]*DataColumnIndex      `gorm:"-"` // Ignored by GORM
+	Config  *Config `gorm:"-"` // Allow null JSON
+	Columns Columns `gorm:"-"` // Ignored by GORM
+	Data    Data    `gorm:"-"` // Ignored by GORM
+	Mapping Indices `gorm:"-"` // Ignored by GORM
 }
 
 // TableName sets the table name for the State struct
@@ -30,12 +34,26 @@ func (State) TableName() string {
 	return "state"
 }
 
+type DataType string
+
+const (
+	DataTypeString   = DataType("str")
+	DataTypeInteger  = DataType("int")
+	DataTypeFloat    = DataType("float")
+	DataTypeBoolean  = DataType("bool")
+	DataTypeDateTime = DataType("datetime")
+	DataTypeDate     = DataType("date")
+	DataTypeTime     = DataType("time")
+	DataTypeBinary   = DataType("binary")
+	DataTypeJSON     = DataType("json")
+)
+
 // DataColumnDefinition represents the structure of the state_column table
 type DataColumnDefinition struct {
 	// Column: id
 	// Type: BIGINT (int64)
 	// Constraints: PRIMARY KEY, NOT NULL, AUTO INCREMENT
-	ID int64 `gorm:"column:id;primaryKey;autoIncrement;type:bigint;not null" json:"id,omitempty"`
+	ID *int64 `gorm:"column:id;primaryKey;autoIncrement;type:bigint;not null" json:"id,omitempty"`
 
 	// Column: state_id
 	// Type: VARCHAR(36)
@@ -50,7 +68,7 @@ type DataColumnDefinition struct {
 	// Column: data_type
 	// Type: VARCHAR(50)
 	// Constraints: NOT NULL, DEFAULT 'str'
-	DataType string `gorm:"column:data_type;type:varchar(50);not null;default:str" json:"data_type"`
+	DataType DataType `gorm:"column:data_type;type:varchar(50);not null;default:str" json:"data_type"`
 
 	// Column: required
 	// Type: BOOLEAN

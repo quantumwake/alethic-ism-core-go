@@ -1,4 +1,4 @@
-package data
+package repository
 
 import (
 	"fmt"
@@ -61,6 +61,15 @@ func (da *Access) Execute(sql string, values ...interface{}) error {
 	if err := tx.Error; err != nil {
 		return fmt.Errorf("unable to execute sql %s, err: %v", sql, err)
 	}
+	return nil
+}
+
+// Query the final query to get the results.
+func (da *Access) Query(query string, dest interface{}, arguments ...any) error {
+	if err := da.DB.Raw(query, arguments...).Scan(&dest).Error; err != nil {
+		return fmt.Errorf("failed to fetch data values: %v", err)
+	}
+
 	return nil
 }
 

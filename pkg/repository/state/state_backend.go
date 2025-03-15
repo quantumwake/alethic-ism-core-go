@@ -2,25 +2,25 @@ package state
 
 import (
 	"fmt"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/state"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"gorm.io/gorm/clause"
 	"log"
 )
 
 type BackendStorage struct {
-	*data.Access
+	*repository.Access
 }
 
 func NewBackend(dsn string) *BackendStorage {
 	return &BackendStorage{
-		Access: data.NewDataAccess(dsn),
+		Access: repository.NewDataAccess(dsn),
 	}
 }
 
 // FindState methods for finding state data.
-func (da *BackendStorage) FindState(id string) (*state.State, error) {
-	var state state.State
+func (da *BackendStorage) FindState(id string) (*State, error) {
+	var state State
 	result := da.DB.Where("id = ?", id).First(&state)
 	if result.Error != nil {
 		return nil, result.Error
@@ -29,7 +29,7 @@ func (da *BackendStorage) FindState(id string) (*state.State, error) {
 }
 
 // UpsertState inserts a state if it does not exist or updates the state if it does.
-func (da *BackendStorage) UpsertState(state *state.State) error {
+func (da *BackendStorage) UpsertState(state *State) error {
 	return da.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"state_type", "count"}),
@@ -48,7 +48,7 @@ func (da *BackendStorage) UpsertState(state *state.State) error {
 //}
 
 // FindDataRowColumnDataByColumnID retrieves all values for a column ID in order by index.
-func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*state.DataRowColumnData, error) {
+func (da *BackendStorage) FindDataRowColumnDataByColumnID(id *int64) (*DataRowColumnData, error) {
 	var values []string
 
 	// Query the column_value directly, ordered by column_index
@@ -63,7 +63,7 @@ func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*state.Data
 	}
 
 	// Create the DataRowColumnData with the ordered values
-	columnData := &state.DataRowColumnData{
+	columnData := &DataRowColumnData{
 		Values: values,
 		Count:  len(values),
 	}
@@ -72,15 +72,15 @@ func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*state.Data
 }
 
 // FindDataColumnDefinitionsByStateID finds all DataColumnDefinitions for a given state ID.
-func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[string]*state.DataColumnDefinition, error) {
-	var definitions []*state.DataColumnDefinition
+func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[string]*DataColumnDefinition, error) {
+	var definitions []*DataColumnDefinition
 	result := da.DB.Where("state_id = ?", id).Find(&definitions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
 	// Create a map of column name to DataColumnDefinition
-	definitionsMap := make(map[string]*state.DataColumnDefinition)
+	definitionsMap := make(map[string]*DataColumnDefinition)
 	for _, definition := range definitions {
 		definitionsMap[definition.Name] = definition
 	}
@@ -89,7 +89,7 @@ func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[str
 }
 
 // FindStateFull finds a state and all associated data columns and data rows
-func (da *BackendStorage) FindStateFull(id string) (*state.State, error) {
+func (da *BackendStorage) FindStateFull(id string) (*State, error) {
 	state, err := da.FindState(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find state, error: %v", err)
@@ -103,7 +103,7 @@ func (da *BackendStorage) FindStateFull(id string) (*state.State, error) {
 	state.Columns = columns
 
 	// Find the data for each column and add it to the state data map
-	state.Data = make(map[string]*state.DataRowColumnData)
+	state.Data = make(map[string]*DataRowColumnData)
 	for _, column := range columns {
 		columnData, err := da.FindDataRowColumnDataByColumnID(column.ID)
 		if err != nil {
@@ -117,6 +117,40 @@ func (da *BackendStorage) FindStateFull(id string) (*state.State, error) {
 	}
 
 	return state, nil
+}
+
+// UpsertStateColumns insert a map of DataColumnDefinition if it does not exist or updates the DataColumnDefinition if it does.
+func (da *BackendStorage) UpsertStateColumns(columns Columns) error {
+	insertColumns := utils.MapValues(columns, func(column *DataColumnDefinition) *DataColumnDefinition {
+		return column
+	})
+
+	return da.DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "state_id"},
+			{Name: "name"},
+		},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"name",
+			"alias",
+			"data_type",
+			"required",
+			"callable",
+			"value",
+		}),
+	}).Create(insertColumns).Error
+}
+
+// DeleteStateColumns deletes all DataColumnDefinitions for a given state ID.
+func (da *BackendStorage) DeleteStateColumns(stateID string) int {
+	result := da.DB.Where("state_id = ?", stateID).Delete(&DataColumnDefinition{})
+	return int(result.RowsAffected)
+}
+
+// DeleteStateColumn deletes a DataColumnDefinition by ID.
+func (da *BackendStorage) DeleteStateColumn(id int64) bool {
+	result := da.DB.Delete(&DataColumnDefinition{}, id)
+	return result.RowsAffected > 0
 }
 
 //// UnmarshalJSON is a custom unmarshaler for the Usage struct to handle the transaction time field.

@@ -1,17 +1,17 @@
 package route
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/processor"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
 )
 
 type BackendStorage struct {
-	*data.Access
+	*repository.Access
 }
 
 func NewBackend(dsn string) *BackendStorage {
 	return &BackendStorage{
-		Access: data.NewDataAccess(dsn),
+		Access: repository.NewDataAccess(dsn),
 	}
 }
 

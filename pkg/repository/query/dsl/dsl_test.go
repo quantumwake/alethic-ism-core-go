@@ -1,9 +1,14 @@
 package dsl
 
 import (
-	"alethic-ism-query-api/pkg/data"
+	state_query "github.com/quantumwake/alethic-ism-core-go/pkg/repository/query"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/test"
 	"github.com/stretchr/testify/assert"
 	"testing"
+)
+
+var (
+	backendQueryState = state_query.NewBackend(test.DSN)
 )
 
 func TestDSL(t *testing.T) {
@@ -25,18 +30,8 @@ func TestDSL(t *testing.T) {
 	query.AddFilterGroup(group1)
 	query.AddFilterGroup(group2)
 
-	da, err := data.TestNewDataAccess(t)
-	assert.NoError(t, err)
-
-	results, err := da.Query(query)
+	// query for state data, filter by added filter criteria
+	results, err := backendQueryState.Query(query)
 	assert.NoError(t, err)
 	assert.Greater(t, len(results), 0)
-
-	//
-	//queryResults, err := da.Query(query)
-	//assert.NoError(t, err)
-	//assert.Greater(t, len(queryResults), 0)
-
-	//fmt.Println("SQL Query:", sql)
-	//fmt.Println("Arguments:", args)
 }
