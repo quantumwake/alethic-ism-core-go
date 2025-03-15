@@ -1,7 +1,8 @@
 package state_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	state2 "github.com/quantumwake/alethic-ism-core-go/pkg/data/models/state"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/user"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/project"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/state"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
@@ -16,12 +17,12 @@ var (
 	backendState   = state.NewBackend(test.DSN)
 )
 
-func helperState(t *testing.T, projectID string) *models.State {
+func helperState(t *testing.T, projectID string) *state2.State {
 	// insert state for project
-	s := &models.State{
+	s := &state2.State{
 		ID:        "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		ProjectID: projectID,
-		Type:      models.StateBasic,
+		Type:      state2.StateBasic,
 	}
 	err := backendState.UpsertState(s)
 	require.NoError(t, err)
@@ -29,9 +30,9 @@ func helperState(t *testing.T, projectID string) *models.State {
 	return s
 }
 
-func helperProject(t *testing.T, userID string) *models.Project {
+func helperProject(t *testing.T, userID string) *user.Project {
 	// insert project for user
-	p := &models.Project{
+	p := &user.Project{
 		ID:     "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		Name:   "Test Project",
 		UserID: userID,
@@ -40,9 +41,9 @@ func helperProject(t *testing.T, userID string) *models.Project {
 	return p
 }
 
-func helperUser(t *testing.T) *models.User {
+func helperUser(t *testing.T) *user.User {
 	// insert a user
-	u := &models.User{
+	u := &user.User{
 		ID:       "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		Name:     "Test User",
 		Email:    "hello@world.com",

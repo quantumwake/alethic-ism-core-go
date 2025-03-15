@@ -1,7 +1,7 @@
 package project_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/user"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/project"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/user"
@@ -15,7 +15,7 @@ var (
 )
 
 func TestBackendStorage_InsertOrUpdate(t *testing.T) {
-	usr := &models.User{
+	usr := &user.User{
 		ID:       "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		Name:     "Test User",
 		Email:    "hello@world.com",
@@ -27,7 +27,7 @@ func TestBackendStorage_InsertOrUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// create a a list of projects
-	projects := []models.Project{
+	projects := []user.Project{
 		{ID: "0267a05b-8cad-49b7-8c61-49ffc221277a", UserID: usr.ID, Name: "Test Project 1"},
 		{ID: "0267a05b-8cad-49b7-8c61-49ffc221277b", UserID: usr.ID, Name: "Test Project 2"},
 	}

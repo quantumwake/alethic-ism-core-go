@@ -1,4 +1,4 @@
-package models
+package state
 
 // DefinitionType is equivalent to Python's StateDefinitionType
 type DefinitionType string

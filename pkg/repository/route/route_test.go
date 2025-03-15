@@ -1,7 +1,7 @@
 package route_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/processor"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/route"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
 	"testing"
@@ -29,7 +29,7 @@ func TestAccess_FindRouteByProcessorAndDirection(t *testing.T) {
 
 	println(rt.Direction)
 
-	outputRoutes, err := rb.FindRouteByProcessorAndDirection(rt.ProcessorID, models.DirectionOutput)
+	outputRoutes, err := rb.FindRouteByProcessorAndDirection(rt.ProcessorID, processor.DirectionOutput)
 
 	if err != nil {
 		t.Errorf("Error: %v", err)

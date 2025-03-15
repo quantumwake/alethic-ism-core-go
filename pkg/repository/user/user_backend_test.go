@@ -1,7 +1,7 @@
 package user_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/user"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/data/user"
 	"github.com/stretchr/testify/require"
@@ -13,7 +13,7 @@ var (
 )
 
 func TestBackendStorage_InsertOrUpdate(t *testing.T) {
-	usr := &models.User{
+	usr := &user.User{
 		ID:       "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		Name:     "Test User",
 		Email:    "hello@world.com",

@@ -1,6 +1,4 @@
-package models
-
-import "time"
+package state
 
 type Type string
 
@@ -13,33 +11,7 @@ const (
 	StateStream = Type("StateConfigStream")
 )
 
-type State0 struct {
-	ID                string                          `gorm:"primaryKey" json:"id,omitempty"`
-	ProjectID         string                          `json:"project_id,omitempty"`
-	Config            interface{}                     `json:"config,omitempty"` // You may define more specific types here
-	Columns           map[string]DataColumnDefinition `json:"columns" gorm:"-"`
-	Data              map[string]DataRowColumnData    `json:"data" gorm:"-"`
-	Mapping           map[string]DataColumnIndex      `json:"mapping" gorm:"-"`
-	Count             int                             `json:"count" gorm:"default:0"`
-	PersistedPosition int                             `json:"persisted_position,omitempty" gorm:"default:0"`
-	CreateDate        time.Time                       `json:"create_date,omitempty"`
-	UpdateDate        time.Time                       `json:"update_date,omitempty"`
-	StateType         string                          `json:"state_type,omitempty"`
-}
-
-//
-//type StateType string
-//
-//const (
-//	StateConfigBasic     = StateType("StateConfig")
-//	StateConfigLM        = StateType("StateConfigLM")
-//	StateConfigVisual    = StateType("StateConfigVisual")
-//	StateConfigCode      = StateType("StateConfigCode")
-//	StateConfigStream    = StateType("StateConfigStream")
-//	StateConfigAudio     = StateType("StateConfigAudio")
-//	StateConfigUserInput = StateType("StateConfigUserInput")
-//)
-
+// State primary state entity.
 type State struct {
 	ID        string `gorm:"column:id;type:varchar(36);primaryKey;not null"`
 	ProjectID string `gorm:"column:project_id;type:varchar(36);not null"`

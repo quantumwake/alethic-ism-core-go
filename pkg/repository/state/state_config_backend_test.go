@@ -1,7 +1,8 @@
 package state_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/state"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -11,21 +12,21 @@ const (
 	BoolFalse = "false"
 )
 
-func helperStateConfigMap(t *testing.T, stateID string) []*models.StateConfigAttribute {
-	attributes := []*models.StateConfigAttribute{
+func helperStateConfigAttributes(t *testing.T, stateID string) []*state.StateConfigAttribute {
+	attributes := []*state.StateConfigAttribute{
 		{
 			StateID:   stateID,
-			Attribute: models.AttributeFlagQueryStateInheritanceAll,
+			Attribute: state.AttributeFlagQueryStateInheritanceAll,
 			Data:      BoolTrue,
 		},
 		{
 			StateID:   stateID,
-			Attribute: models.AttributeFlagRequirePrimaryKey,
+			Attribute: state.AttributeFlagRequirePrimaryKey,
 			Data:      BoolTrue,
 		},
 		{
 			StateID:   stateID,
-			Attribute: models.AttributeFlagAutoRouteOutputStateAfterSave,
+			Attribute: state.AttributeFlagAutoRouteOutputStateAfterSave,
 			Data:      BoolTrue,
 		},
 	}
@@ -43,10 +44,18 @@ func helperStateConfigMap(t *testing.T, stateID string) []*models.StateConfigAtt
 	require.NoError(t, err)
 
 	for _, attribute := range fetchedAttributes {
-		require.Equal(t, attribute.Data, string(BoolFalse))
+		require.Equal(t, attribute.Data, BoolFalse)
 	}
 
 	return attributes
+}
+
+func helperStateDataKeyDefinitions(t *testing.T, stateID string) {
+	priamryKey := []*state.DataKeyDefinition{
+		{ID: nil, DefinitionType: state.DefinitionPrimaryKey, StateID: stateID, Name: "field_a", Required: utils.Bool(false), Callable: utils.Bool(false)},
+		{ID: nil, DefinitionType: state.DefinitionPrimaryKey, StateID: stateID, Name: "field_a", Required: utils.Bool(false), Callable: utils.Bool(false)},
+	}
+
 }
 
 func TestBackendStorage_InsertStateConfig(t *testing.T) {
@@ -54,7 +63,8 @@ func TestBackendStorage_InsertStateConfig(t *testing.T) {
 	p := helperProject(t, u.ID)
 	s := helperState(t, p.ID)
 
-	helperStateConfigMap(t, s.ID)
+	helperStateConfigAttributes(t, s.ID)
+
 	// find the state by ID
 	//s2, err := backendState.FindState(s.ID)
 	//require.NoError(t, err)

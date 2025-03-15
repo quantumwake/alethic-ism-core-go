@@ -2,25 +2,13 @@ package state
 
 import (
 	"fmt"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models"
 	"gorm.io/gorm/clause"
 	"log"
 )
 
-type BackendStorage struct {
-	*data.Access
-}
-
-func NewBackend(dsn string) *BackendStorage {
-	return &BackendStorage{
-		Access: data.NewDataAccess(dsn),
-	}
-}
-
 // FindState methods for finding state data.
-func (da *BackendStorage) FindState(id string) (*models.State, error) {
-	var state models.State
+func (da *BackendStorage) FindStateDataKeyDefinition(id string) (*State, error) {
+	var state DataKeyDefinition
 	result := da.DB.Where("id = ?", id).First(&state)
 	if result.Error != nil {
 		return nil, result.Error
@@ -29,7 +17,7 @@ func (da *BackendStorage) FindState(id string) (*models.State, error) {
 }
 
 // UpsertState inserts a state if it does not exist or updates the state if it does.
-func (da *BackendStorage) UpsertState(state *models.State) error {
+func (da *BackendStorage) UpsertState(state *State) error {
 	return da.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"state_type", "count"}),
@@ -48,7 +36,7 @@ func (da *BackendStorage) UpsertState(state *models.State) error {
 //}
 
 // FindDataRowColumnDataByColumnID retrieves all values for a column ID in order by index.
-func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*models.DataRowColumnData, error) {
+func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*DataRowColumnData, error) {
 	var values []string
 
 	// Query the column_value directly, ordered by column_index
@@ -63,7 +51,7 @@ func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*models.Dat
 	}
 
 	// Create the DataRowColumnData with the ordered values
-	columnData := &models.DataRowColumnData{
+	columnData := &DataRowColumnData{
 		Values: values,
 		Count:  len(values),
 	}
@@ -72,15 +60,15 @@ func (da *BackendStorage) FindDataRowColumnDataByColumnID(id int64) (*models.Dat
 }
 
 // FindDataColumnDefinitionsByStateID finds all DataColumnDefinitions for a given state ID.
-func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[string]*models.DataColumnDefinition, error) {
-	var definitions []*models.DataColumnDefinition
+func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[string]*DataColumnDefinition, error) {
+	var definitions []*DataColumnDefinition
 	result := da.DB.Where("state_id = ?", id).Find(&definitions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
 	// Create a map of column name to DataColumnDefinition
-	definitionsMap := make(map[string]*models.DataColumnDefinition)
+	definitionsMap := make(map[string]*DataColumnDefinition)
 	for _, definition := range definitions {
 		definitionsMap[definition.Name] = definition
 	}
@@ -89,7 +77,7 @@ func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[str
 }
 
 // FindStateFull finds a state and all associated data columns and data rows
-func (da *BackendStorage) FindStateFull(id string) (*models.State, error) {
+func (da *BackendStorage) FindStateFull(id string) (*State, error) {
 	state, err := da.FindState(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find state, error: %v", err)
@@ -103,7 +91,7 @@ func (da *BackendStorage) FindStateFull(id string) (*models.State, error) {
 	state.Columns = columns
 
 	// Find the data for each column and add it to the state data map
-	state.Data = make(map[string]*models.DataRowColumnData)
+	state.Data = make(map[string]*DataRowColumnData)
 	for _, column := range columns {
 		columnData, err := da.FindDataRowColumnDataByColumnID(column.ID)
 		if err != nil {
