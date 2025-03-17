@@ -19,13 +19,14 @@ const (
 	AttributeFlagAutoRouteOutputStateAfterSave = StateAttribute("flag_auto_route_output_state_after_save")
 )
 
-type StateConfigAttribute struct {
-	StateID   string         `gorm:"column:state_id;type:varchar(255);not null"`
+type ConfigAttributes []*ConfigAttribute
+type ConfigAttribute struct {
+	StateID   string         `gorm:"column:state_id;type:varchar(255);not null" json:"-"`
 	Attribute StateAttribute `gorm:"column:attribute;type:varchar(255);not null"`
 	Data      string         `gorm:"column:data;type:text"` // TODO probably should be a json or *bytes?
 }
 
 // TableName sets the table name for the StateConfig struct
-func (StateConfigAttribute) TableName() string {
+func (ConfigAttribute) TableName() string {
 	return "state_config"
 }

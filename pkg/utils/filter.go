@@ -30,6 +30,35 @@ func MapValues[K comparable, V any, R any](
 	)
 }
 
+// SliceToMap converts a slice of values into a map using the provided key function
+func SliceToMap[T any, K comparable](
+	slice []T,
+	keyFn func(T) K,
+) map[K]T {
+	result := make(map[K]T, len(slice))
+
+	for _, item := range slice {
+		key := keyFn(item)
+		result[key] = item
+	}
+
+	return result
+}
+
+func SliceToGroupMap[T any, K comparable](
+	slice []T,
+	keyFn func(T) K,
+) map[K][]T {
+	result := make(map[K][]T)
+
+	for _, item := range slice {
+		key := keyFn(item)
+		result[key] = append(result[key], item)
+	}
+
+	return result
+}
+
 // FilterMap returns a new map containing only the key-value pairs that pass the filter
 func FilterMap[K comparable, V any](
 	input map[K]V,

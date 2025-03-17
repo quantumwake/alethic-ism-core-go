@@ -8,7 +8,8 @@ type BaseConfig struct {
 }
 
 type ColumnKeyDefinitions map[DefinitionType][]*ColumnKeyDefinition
-type ConfigAttributes map[StateAttribute]any
+
+//type ConfigAttributes map[StateAttribute]string
 
 // Config is equivalent to StateConfig definition as defined in the alethic-ism-core (python) module, but slightly different representation.
 // TODO probably rip the state config out and replace it with something more robust and easier to understand.
@@ -38,4 +39,19 @@ func (sc *Config) GetDataKeyDefinitions(definitionType DefinitionType) []*Column
 		return definitions
 	}
 	return nil
+}
+
+func (sc *Config) BuildStateConfigAttributes(stateID string) []*ConfigAttribute {
+
+	/// TODO build util map function
+	attributes := make([]*ConfigAttribute, 0, len(sc.Attributes))
+	for _, attr := range sc.Attributes {
+		attributes = append(attributes, &ConfigAttribute{
+			StateID:   stateID,
+			Attribute: attr.Attribute,
+			Data:      attr.Data,
+		})
+	}
+
+	return attributes
 }

@@ -35,7 +35,16 @@ func helperStateColumns(t *testing.T, stateID string) state.Columns {
 		"field_b": {StateID: stateID, Name: "field_b", DataType: state.DataTypeString, Required: utils.Bool(false)},
 	}
 
-	backendState.UpsertStateColumns(columns)
+	// create new data columns
+	require.NoError(t, backendState.UpsertStateColumns(columns))
+
+	// update the column names
+	//columns["field_a"].Name = "field_a_updated"
+	//require.NoError(t, backendState.UpsertStateColumns(columns))
+
+	// delete the newly created state columns
+	require.Equal(t, 2, backendState.DeleteStateColumns(stateID))
+
 	return columns
 }
 
@@ -62,8 +71,8 @@ func helperUser(t *testing.T) *user.User {
 	return u
 }
 
-func helperStateConfigAttributes(t *testing.T, stateID string) []*state.StateConfigAttribute {
-	attributes := []*state.StateConfigAttribute{
+func helperStateConfigAttributes(t *testing.T, stateID string) []*state.ConfigAttribute {
+	attributes := []*state.ConfigAttribute{
 		{
 			StateID:   stateID,
 			Attribute: state.AttributeFlagQueryStateInheritanceAll,

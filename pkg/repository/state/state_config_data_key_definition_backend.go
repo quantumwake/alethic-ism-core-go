@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"gorm.io/gorm/clause"
 )
 
@@ -12,6 +13,19 @@ func (da *BackendStorage) FindStateConfigKeyDefinitions(stateID string) ([]*Colu
 		return nil, result.Error
 	}
 	return definitions, nil
+}
+
+// FindStateConfigKeyDefinitionsGroupByDefinitionType finds all data key definitions for a given state id and groups them by definition type.
+func (da *BackendStorage) FindStateConfigKeyDefinitionsGroupByDefinitionType(stateID string) (ColumnKeyDefinitions, error) {
+	definitions, err := da.FindStateConfigKeyDefinitions(stateID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Group the definitions using the new utility function
+	return utils.SliceToGroupMap(definitions, func(def *ColumnKeyDefinition) DefinitionType {
+		return def.DefinitionType
+	}), nil
 }
 
 // UpsertStateConfigKeyDefinitions inserts a new or updates an existing data key definition list for a given state.

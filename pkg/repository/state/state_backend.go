@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"log"
 )
@@ -29,11 +30,42 @@ func (da *BackendStorage) FindState(id string) (*State, error) {
 }
 
 // UpsertState inserts a state if it does not exist or updates the state if it does.
-func (da *BackendStorage) UpsertState(state *State) error {
-	return da.DB.Clauses(clause.OnConflict{
+func UpsertState(db *gorm.DB, state *State) error {
+	return db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"state_type", "count"}),
 	}).Create(state).Error
+}
+
+func (da *BackendStorage) UpsertState(state *State) error {
+	return UpsertState(da.DB, state)
+}
+
+func (da *BackendStorage) UpsertStateComplete(state *State) error {
+	return da.RunTransactionIsolation(func(db *gorm.DB) error {
+		// persist the state in first
+		if err := UpsertState(db, state); err != nil {
+			return fmt.Errorf("unable to store state: %v", err)
+		}
+
+		//utils.MapReduce()
+
+		/// TODO build util map function
+		var attributes []*ConfigAttribute
+		for _, attr := range state.Config.Attributes {
+			attributes = append(attributes, &ConfigAttribute{
+				StateID:   state.ID,
+				Attribute: attr.Attribute,
+				Data:      attr.Data,
+			})
+		}
+
+		//if err = UpsertConfigAttributes(db, state.Config.Attributes); err != nil {
+		//
+		//}
+
+		return nil
+	})
 }
 
 // FindDataRowColumnDataByColumnID finds DataRowColumnData by column ID.
@@ -72,7 +104,7 @@ func (da *BackendStorage) FindDataRowColumnDataByColumnID(id *int64) (*DataRowCo
 }
 
 // FindDataColumnDefinitionsByStateID finds all DataColumnDefinitions for a given state ID.
-func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[string]*DataColumnDefinition, error) {
+func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (Columns, error) {
 	var definitions []*DataColumnDefinition
 	result := da.DB.Where("state_id = ?", id).Find(&definitions)
 	if result.Error != nil {
@@ -89,30 +121,67 @@ func (da *BackendStorage) FindDataColumnDefinitionsByStateID(id string) (map[str
 }
 
 // FindStateFull finds a state and all associated data columns and data rows
-func (da *BackendStorage) FindStateFull(id string) (*State, error) {
+func (da *BackendStorage) FindStateFull(id string, flags StateLoadFlags) (*State, error) {
 	state, err := da.FindState(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find state, error: %v", err)
 	}
 
-	// Find the data columns for the state and add them to the state
-	columns, err := da.FindDataColumnDefinitionsByStateID(id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find state data, error: %v", err)
+	// If we only need the basic state data, return it now
+	if flags == StateLoadBasic {
+		return state, nil
 	}
-	state.Columns = columns
 
-	// Find the data for each column and add it to the state data map
-	state.Data = make(map[string]*DataRowColumnData)
-	for _, column := range columns {
-		columnData, err := da.FindDataRowColumnDataByColumnID(column.ID)
+	// Find the key definitions for the state and add them to the state
+	var keyDefinitions ColumnKeyDefinitions
+	if flags&StateLoadConfigKeyDefinitions != 0 {
+		// Find the key definitions for the state and add them to the state
+		keyDefinitions, err = da.FindStateConfigKeyDefinitionsGroupByDefinitionType(id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find state data, error: %v", err)
 		}
-		state.Data[column.Name] = columnData
-		if state.Count != columnData.Count {
-			// TODO log warning, generally this should not happen, unless we have a serious persistent issue, which can in theory happen (check python db code, we need a new storage solution, this needs to be done in a single transaction maybe?)
-			log.Printf("state count %v does not match column data count %v, column data needs to be rebalanced or cut out from maximum position index", state.Count, columnData.Count)
+	}
+
+	// Find the config attributes for the state and add them to the state
+	var configAttributes ConfigAttributes
+	if flags&StateLoadConfigAttributes != 0 {
+		// Find the key definitions for the state and add them to the state
+		configAttributes, err = da.FindConfigAttributes(id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find state data, error: %v", err)
+		}
+	}
+
+	// Derive state config
+	state.Config = &Config{
+		Attributes:     configAttributes, // TODO fetch the config attributes
+		KeyDefinitions: keyDefinitions,
+	}
+
+	// Find the data columns for the state and add them to the state
+	var columns Columns
+	if flags&StateLoadColumns != 0 {
+		// Find the data columns for the state and add them to the state
+		columns, err = da.FindDataColumnDefinitionsByStateID(id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find state data, error: %v", err)
+		}
+		state.Columns = columns
+	}
+
+	if flags&StateLoadData != 0 {
+		// Find the data for each column and add it to the state data map
+		state.Data = make(map[string]*DataRowColumnData)
+		for _, column := range columns {
+			columnData, err := da.FindDataRowColumnDataByColumnID(column.ID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find state data, error: %v", err)
+			}
+			state.Data[column.Name] = columnData
+			if state.Count != columnData.Count {
+				// TODO log warning, generally this should not happen, unless we have a serious persistent issue, which can in theory happen (check python db code, we need a new storage solution, this needs to be done in a single transaction maybe?)
+				log.Printf("state count %v does not match column data count %v, column data needs to be rebalanced or cut out from maximum position index", state.Count, columnData.Count)
+			}
 		}
 	}
 
@@ -125,14 +194,18 @@ func (da *BackendStorage) UpsertStateColumns(columns Columns) error {
 		return column
 	})
 
+	// TODO figure this out, needs to be able to handle both create and updates to the name.
+
 	return da.DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{
-			{Name: "state_id"},
 			{Name: "name"},
+			{Name: "state_id"},
 		},
+		//Where: clause.Where{
+		//	Exprs: c.Gt{Column: "id", Value: 0},
+		//},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"name",
-			"alias",
 			"data_type",
 			"required",
 			"callable",
