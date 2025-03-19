@@ -1,12 +1,11 @@
 package state
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"gorm.io/gorm/clause"
 )
 
 // FindStateConfigKeyDefinitions finds all data key definitions for a given state id.
-func (da *BackendStorage) FindStateConfigKeyDefinitions(stateID string) ([]*ColumnKeyDefinition, error) {
+func (da *BackendStorage) FindStateConfigKeyDefinitions(stateID string) (ColumnKeyDefinitions, error) {
 	var definitions []*ColumnKeyDefinition
 	result := da.DB.Where("state_id = ?", stateID).Find(&definitions)
 	if result.Error != nil {
@@ -22,10 +21,21 @@ func (da *BackendStorage) FindStateConfigKeyDefinitionsGroupByDefinitionType(sta
 		return nil, err
 	}
 
-	// Group the definitions using the new utility function
-	return utils.SliceToGroupMap(definitions, func(def *ColumnKeyDefinition) DefinitionType {
-		return def.DefinitionType
-	}), nil
+	typedColumnKeyDefinitions := TypedColumnKeyDefinitions{}
+	for _, definition := range definitions {
+		//if columnKeyDefinitions, ok := typedColumnKeyDefinitions[definition.DefinitionType]; !ok {
+		//columnKeyDefinitions = ColumnKeyDefinitions{definition}
+		//typedColumnKeyDefinitions[definition.DefinitionType] = append(typedColumnKeyDefinitions[definition.DefinitionType], definition)
+		//}
+
+		typedColumnKeyDefinitions[definition.DefinitionType] = append(typedColumnKeyDefinitions[definition.DefinitionType], definition)
+	}
+	return typedColumnKeyDefinitions, nil
+
+	//// Group the definitions using the new utility function
+	//return utils.SliceToGroupMap(definitions, func(def *ColumnKeyDefinition) DefinitionType {
+	//	return def.DefinitionType
+	//}), nil
 }
 
 // UpsertStateConfigKeyDefinitions inserts a new or updates an existing data key definition list for a given state.
