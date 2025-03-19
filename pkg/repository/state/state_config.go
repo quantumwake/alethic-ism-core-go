@@ -7,7 +7,9 @@ type BaseConfig struct {
 
 }
 
-type ColumnKeyDefinitions map[DefinitionType][]*ColumnKeyDefinition
+type ColumnKeyDefinitions []*ColumnKeyDefinition
+
+type TypedColumnKeyDefinitions map[DefinitionType]ColumnKeyDefinitions
 
 //type ConfigAttributes map[StateAttribute]string
 
@@ -15,8 +17,8 @@ type ColumnKeyDefinitions map[DefinitionType][]*ColumnKeyDefinition
 // TODO probably rip the state config out and replace it with something more robust and easier to understand.
 type Config struct {
 	BaseConfig
-	KeyDefinitions ColumnKeyDefinitions `json:"key_definitions,omitempty"`
-	Attributes     ConfigAttributes     `json:"attributes"` /// TODO maybe use the ConfigMap (from the vault pkg) instead of having a separate state config map
+	TypedKeyDefinitions TypedColumnKeyDefinitions `json:"typed_key_definitions,omitempty"`
+	Attributes          ConfigAttributes          `json:"attributes"` /// TODO maybe use the ConfigMap (from the vault pkg) instead of having a separate state config map
 
 	//PrimaryKey                        []*StateColumnKeyDefinition `json:"primary_key,omitempty"`
 	//QueryStateInheritance             []*StateColumnKeyDefinition `json:"query_state_inheritance,omitempty"`
@@ -25,7 +27,7 @@ type Config struct {
 
 }
 
-// GetDataKeyDefinitions fetches a list of data key definitions, e.g., primary key data fields from
+// GetKeyDefinitionsByType fetches a list of data key definitions, e.g., primary key data fields from
 // the map of available definitions, provided the respective state type defines the definition.
 //
 // Note, data key definitions are generally optional and depends on whether the state is an output of a certain type
@@ -33,8 +35,8 @@ type Config struct {
 // processor understands what fields to use to join the two stream together.
 //
 // TODO: will likely change this completely, for now it will do (e.g., use a json block to represent the state configuration)
-func (sc *Config) GetDataKeyDefinitions(definitionType DefinitionType) []*ColumnKeyDefinition {
-	definitions, ok := sc.KeyDefinitions[definitionType]
+func (sc *Config) GetKeyDefinitionsByType(definitionType DefinitionType) ColumnKeyDefinitions {
+	definitions, ok := sc.TypedKeyDefinitions[definitionType]
 	if ok {
 		return definitions
 	}

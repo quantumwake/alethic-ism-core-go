@@ -133,7 +133,7 @@ func (da *BackendStorage) FindStateFull(id string, flags StateLoadFlags) (*State
 	}
 
 	// Find the key definitions for the state and add them to the state
-	var keyDefinitions ColumnKeyDefinitions
+	var keyDefinitions TypedColumnKeyDefinitions
 	if flags&StateLoadConfigKeyDefinitions != 0 {
 		// Find the key definitions for the state and add them to the state
 		keyDefinitions, err = da.FindStateConfigKeyDefinitionsGroupByDefinitionType(id)

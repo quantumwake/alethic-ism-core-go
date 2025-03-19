@@ -16,7 +16,7 @@ func (da *BackendStorage) FindStateConfigKeyDefinitions(stateID string) ([]*Colu
 }
 
 // FindStateConfigKeyDefinitionsGroupByDefinitionType finds all data key definitions for a given state id and groups them by definition type.
-func (da *BackendStorage) FindStateConfigKeyDefinitionsGroupByDefinitionType(stateID string) (ColumnKeyDefinitions, error) {
+func (da *BackendStorage) FindStateConfigKeyDefinitionsGroupByDefinitionType(stateID string) (TypedColumnKeyDefinitions, error) {
 	definitions, err := da.FindStateConfigKeyDefinitions(stateID)
 	if err != nil {
 		return nil, err
