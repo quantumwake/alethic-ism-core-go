@@ -154,8 +154,8 @@ func (da *BackendStorage) FindStateFull(id string, flags StateLoadFlags) (*State
 
 	// Derive state config
 	state.Config = &Config{
-		Attributes:     configAttributes, // TODO fetch the config attributes
-		KeyDefinitions: keyDefinitions,
+		Attributes:          configAttributes, // TODO fetch the config attributes
+		TypedKeyDefinitions: keyDefinitions,
 	}
 
 	// Find the data columns for the state and add them to the state
