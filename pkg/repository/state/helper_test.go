@@ -19,7 +19,7 @@ var (
 func helperState(t *testing.T, projectID string) *state.State {
 	// insert state for project
 	s := &state.State{
-		ID:        "00000000-0000-0000-0000-00000000000a",
+		ID:        "00000000-0000-0000-0000-00000000000b",
 		ProjectID: projectID,
 		Type:      state.StateBasic,
 	}
@@ -111,8 +111,8 @@ func helperStateConfigAttributes(t *testing.T, stateID string) []*state.ConfigAt
 
 func helperStateColumnKeyDefinitions(t *testing.T, stateID string) {
 	definitions := []*state.ColumnKeyDefinition{
-		{DefinitionType: state.DefinitionPrimaryKey, StateID: stateID, Name: "field_a", Required: utils.Bool(false), Callable: utils.Bool(false)},
-		{DefinitionType: state.DefinitionPrimaryKey, StateID: stateID, Name: "field_b", Required: utils.Bool(false), Callable: utils.Bool(false)},
+		{DefinitionType: state.DefinitionStateJoinKey, StateID: stateID, Name: "field_a", Required: utils.Bool(false), Callable: utils.Bool(false)},
+		{DefinitionType: state.DefinitionStateJoinKey, StateID: stateID, Name: "field_b", Required: utils.Bool(false), Callable: utils.Bool(false)},
 	}
 
 	require.NoError(t, backendState.UpsertStateConfigKeyDefinitions(definitions))

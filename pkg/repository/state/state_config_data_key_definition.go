@@ -5,6 +5,7 @@ type DefinitionType string
 
 const (
 	DefinitionPrimaryKey             DefinitionType = "primary_key"
+	DefinitionStateJoinKey           DefinitionType = "state_join_key"
 	DefinitionQueryStateInheritance  DefinitionType = "query_state_inheritance"
 	DefinitionRemapQueryStateColumns DefinitionType = "remap_query_state_columns"
 	DefinitionTemplateColumns        DefinitionType = "template_columns"
