@@ -35,11 +35,12 @@ func (sw *Statistics) Reset() {
 	sw.end = 0
 }
 
-func (sw *Statistics) Lap() {
+func (sw *Statistics) Lap() *Statistics {
 	elapsed := sw.Elapsed()
 	sw.laps = append(sw.laps, elapsed)
 	sw.sum += elapsed
 	sw.count++
+	return sw
 }
 
 func (sw *Statistics) LapWith(elapsed int64) {
