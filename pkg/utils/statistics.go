@@ -30,9 +30,16 @@ func (sw *Statistics) Elapsed() int64 {
 	return sw.end - sw.start
 }
 
-func (sw *Statistics) Reset() {
+func (sw *Statistics) Reset() *Statistics {
 	sw.start = 0
 	sw.end = 0
+	return sw
+}
+
+func (sw *Statistics) LapResetStart() int64 {
+	elapsed := sw.Lap().Elapsed()
+	sw.Reset().Start()
+	return elapsed
 }
 
 func (sw *Statistics) Lap() *Statistics {
