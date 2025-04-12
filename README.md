@@ -10,5 +10,12 @@ The Alethic ISM Core SDK is the foundational layer of the Alethic ISM project gr
 ### Status 
 This project is actively under development and remains in an experimental/prototype phase. Contributions and feedback are welcome as the project evolves.
 
-### License
-For licensing details, please refer to [LICENSE.md](README.md).
+## License
+Alethic ISM is under a DUAL licensing model, please refer to [LICENSE.md](LICENSE.md).
+
+**AGPL v3**  
+Intended for academic, research, and nonprofit institutional use. As long as all derivative works are also open-sourced under the same license, you are free to use, modify, and distribute the software.
+
+**Commercial License**
+Intended for commercial use, including production deployments and proprietary applications. This license allows for closed-source derivative works and commercial distribution. Please contact us for more information.
+
