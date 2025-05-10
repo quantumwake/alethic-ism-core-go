@@ -2,7 +2,7 @@ package vault
 
 import (
 	"github.com/google/uuid"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -16,13 +16,13 @@ type Storage interface {
 // DatabaseStorage is a database backend storage
 type DatabaseStorage struct {
 	Storage
-	*data.Access
+	*repository.Access
 }
 
 // NewDatabaseStorage creates a new database backend storage.
 func NewDatabaseStorage(dsn string) *DatabaseStorage {
 	return &DatabaseStorage{
-		Access: data.NewDataAccess(dsn),
+		Access: repository.NewDataAccess(dsn),
 	}
 }
 

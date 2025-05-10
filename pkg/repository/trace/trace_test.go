@@ -1,8 +1,8 @@
 package trace_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/test"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/trace"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/test"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/trace"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"

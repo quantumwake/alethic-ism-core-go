@@ -23,9 +23,9 @@ func NewBackend(dsn string) *BackendStorage {
 	return storage
 }
 
-func (da *BackendStorage) Query(query dsl.StateQuery) ([]dsl.StateQueryResult, error) {
+func (da *BackendStorage) Query(stateID string, query dsl.StateQuery) ([]dsl.StateQueryResult, error) {
 	// Validate UUID
-	if err := utils.ValidateUUID(query.StateID); err != nil {
+	if err := utils.ValidateUUID(stateID); err != nil {
 		return nil, fmt.Errorf("invalid UUID: %v", err)
 	}
 
