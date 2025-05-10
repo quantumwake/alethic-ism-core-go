@@ -1,4 +1,4 @@
-package state_query
+package query
 
 //func TestNewDataAccess(t *testing.T) (*BackendStorage, error) {
 //	//func TestNewDataAccess(t *testing.T) *data.Access {

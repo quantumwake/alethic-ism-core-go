@@ -1,1 +1,1 @@
-package state_query_test
+package query_test

@@ -1,4 +1,4 @@
-package state_query
+package query
 
 import (
 	"fmt"
