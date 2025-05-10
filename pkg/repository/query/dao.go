@@ -30,7 +30,7 @@ func (da *BackendStorage) Query(stateID string, query dsl.StateQuery) ([]dsl.Sta
 	}
 
 	// Build the final SQL query and arguments
-	dataSQL, dataArgs, err := query.BuildFinalQuery()
+	dataSQL, dataArgs, err := query.BuildFinalQuery(stateID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build final query: %v", err)
 	}
