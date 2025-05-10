@@ -30,8 +30,8 @@ type FilterGroup struct {
 
 // StateQuery represents the main query structure with multiple FilterGroups
 type StateQuery struct {
-	UserID       string        `json:"user_id" example:"77c17315-3013-5bb8-8c42-32c28618101f"`
-	StateID      string        `json:"state_id" example:"465884e9-7a08-40d0-acff-148663a7c9cf"`
+	//UserID       string        `json:"user_id" example:"77c17315-3013-5bb8-8c42-32c28618101f"`
+	//StateID      string        `json:"state_id" example:"465884e9-7a08-40d0-acff-148663a7c9cf"`
 	FilterGroups []FilterGroup `json:"filter_groups"`
 }
 
