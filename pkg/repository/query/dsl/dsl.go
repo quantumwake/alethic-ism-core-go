@@ -56,8 +56,8 @@ func (q *StateQuery) AddFilterGroup(group FilterGroup) {
 	q.FilterGroups = append(q.FilterGroups, group)
 }
 
-func (q *StateQuery) BuildIndexQuery() (string, []interface{}) {
-	var args []interface{}
+func (q *StateQuery) BuildIndexQuery(stateID string) (string, []any) {
+	var args []any
 
 	// Base SQL to select distinct indexes
 	sql := `
@@ -67,7 +67,7 @@ func (q *StateQuery) BuildIndexQuery() (string, []interface{}) {
             ON c.id = d.column_id
          WHERE c.state_id = ?
     `
-	args = append(args, q.StateID)
+	args = append(args, stateID)
 
 	// TODO add paging limits
 
@@ -100,9 +100,9 @@ func (q *StateQuery) BuildIndexQuery() (string, []interface{}) {
 	return sql, args
 }
 
-func (q *StateQuery) BuildFinalQuery() (string, []interface{}, error) {
+func (q *StateQuery) BuildFinalQuery(stateID string) (string, []any, error) {
 	// Get the index subquery and arguments
-	indexSQL, indexArgs := q.BuildIndexQuery()
+	indexSQL, indexArgs := q.BuildIndexQuery(stateID)
 
 	// Base SQL to fetch all columns and values for the matching indexes
 	sql := fmt.Sprintf(`
@@ -115,8 +115,8 @@ func (q *StateQuery) BuildFinalQuery() (string, []interface{}, error) {
     `, indexSQL)
 
 	// Final arguments list includes the state_id and the arguments for the index subquery
-	args := append([]interface{}{
-		q.StateID,
+	args := append([]any{
+		stateID,
 	}, indexArgs...)
 
 	return sql, args, nil
