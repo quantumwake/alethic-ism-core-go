@@ -32,6 +32,7 @@ type FilterGroup struct {
 type StateQuery struct {
 	//UserID       string        `json:"user_id" example:"77c17315-3013-5bb8-8c42-32c28618101f"`
 	//StateID      string        `json:"state_id" example:"465884e9-7a08-40d0-acff-148663a7c9cf"`
+	DataColumns  []string      `json:"data_columns"`
 	FilterGroups []FilterGroup `json:"filter_groups"`
 }
 
@@ -60,13 +61,11 @@ func (q *StateQuery) BuildIndexQuery(stateID string) (string, []any) {
 	var args []any
 
 	// Base SQL to select distinct indexes
-	sql := `
-        SELECT d.data_index 
-          FROM state_column_data d
-         INNER JOIN state_column c 
-            ON c.id = d.column_id
-         WHERE c.state_id = ?
-    `
+	sql := `SELECT d.data_index 
+			  FROM state_column_data d
+			 INNER JOIN state_column c 
+				ON c.id = d.column_id
+			 WHERE c.state_id = ?`
 	args = append(args, stateID)
 
 	// TODO add paging limits
@@ -104,6 +103,13 @@ func (q *StateQuery) BuildFinalQuery(stateID string) (string, []any, error) {
 	// Get the index subquery and arguments
 	indexSQL, indexArgs := q.BuildIndexQuery(stateID)
 
+	dataColumnSQL := ""
+	var dataColumns []string = nil
+	if len(q.DataColumns) > 0 {
+		dataColumns = q.DataColumns
+		dataColumnSQL = "AND c.name IN ?"
+	}
+
 	// Base SQL to fetch all columns and values for the matching indexes
 	sql := fmt.Sprintf(`
         SELECT c.name AS column_name, d.data_value AS data_value, data_index as data_index
@@ -111,13 +117,18 @@ func (q *StateQuery) BuildFinalQuery(stateID string) (string, []any, error) {
          INNER JOIN state_column c 
             ON c.id = d.column_id
          WHERE c.state_id = ? AND d.data_index IN (%s)
-        ORDER BY d.data_index, c.name
-    `, indexSQL)
+           %s -- inject dataColumnSQL to filter only return specific data columns
+        ORDER BY d.data_index, c.id`, indexSQL, dataColumnSQL)
 
-	// Final arguments list includes the state_id and the arguments for the index subquery
+	// final arguments list includes the state_id and the arguments for the index subquery
 	args := append([]any{
 		stateID,
 	}, indexArgs...)
+
+	// if data columns are defined, then we only want to return data values that are for the columns
+	if dataColumns != nil {
+		args = append(args, dataColumns)
+	}
 
 	return sql, args, nil
 }

@@ -65,8 +65,8 @@ func (da *Access) Execute(sql string, values ...interface{}) error {
 }
 
 // Query the final query to get the results.
-func (da *Access) Query(query string, dest interface{}, arguments ...any) error {
-	if err := da.DB.Raw(query, arguments...).Scan(&dest).Error; err != nil {
+func (da *Access) Query(query string, dest any, arguments ...any) error {
+	if err := da.DB.Raw(query, arguments...).Scan(dest).Error; err != nil {
 		return fmt.Errorf("failed to fetch data values: %v", err)
 	}
 
