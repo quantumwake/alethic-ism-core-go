@@ -300,7 +300,7 @@ func (r *Route) Flush() error {
 }
 
 // Drain drains and closes the connection gracefully.
-func (r *Route) Drain(ctx context.Context) error {
+func (r *Route) Drain() error {
 	if r.nc == nil || !r.nc.IsConnected() {
 		return nil // Not connected, nothing to drain
 	}
