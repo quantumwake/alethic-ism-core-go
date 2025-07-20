@@ -8,7 +8,7 @@ import (
 )
 
 func TestRoute_Subscribe(t *testing.T) {
-	testRoute := NewNATSRouteWithCallback(&NatConfig{
+	testRoute := NewRouteWithCallback(&NatConfig{
 		Name:     ptr.String("test_subscribe_name"),
 		Queue:    ptr.String("test_subscribe_queue"),
 		Subject:  "test.subscribe.queue",

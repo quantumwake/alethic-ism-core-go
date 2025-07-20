@@ -44,14 +44,14 @@ func (msg *MessageEnvelop) Ack(ctx context.Context) error {
 	return msg.Ack(ctx)
 }
 
-// NewNATSRoute initializes and returns a new NATSRoute instance.
-func NewNATSRoute(route *NatConfig) *Route {
+// NewRoute initializes and returns a new NATSRoute instance.
+func NewRoute(route *NatConfig) *Route {
 	return &Route{Config: route, Callback: nil}
 }
 
-// NewNATSRouteWithCallback initializes and returns a new NATSRoute instance.
-// func NewNATSRouteWithCallback(route *NatConfig, callback func(ctx context.Context, route *Route, msg *nats.Msg)) *Route {
-func NewNATSRouteWithCallback(config *NatConfig, callback *MessageEnvelop) *Route {
+// NewRouteWithCallback initializes and returns a new NATSRoute instance.
+// func NewRouteWithCallback(route *NatConfig, callback func(ctx context.Context, route *Route, msg *nats.Msg)) *Route {
+func NewRouteWithCallback(config *NatConfig, callback *MessageEnvelop) *Route {
 	return &Route{Config: config, Callback: callback}
 }
 
