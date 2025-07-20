@@ -27,7 +27,7 @@ func TestRoute_Subscribe(t *testing.T) {
 	}
 
 	updated := false
-	route := NewRoute(config, func(msg routing.MessageEnvelop) {
+	route := NewRoute(config, func(ctx context.Context, msg routing.MessageEnvelop) {
 		data, err := msg.MessageString()
 		require.NoError(t, err)
 		require.NotEmpty(t, data)

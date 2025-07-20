@@ -11,12 +11,6 @@ import (
 	"sync"
 )
 
-// TODO need to make this into an interface and abstract out the backend message routing away from NATS specifics
-
-//type NatConfig interface {
-//	func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, error) {
-//}
-
 type Route struct {
 	routing.Route
 
@@ -29,7 +23,7 @@ type Route struct {
 	mu   sync.Mutex
 	once sync.Once
 
-	Callback func(msg routing.MessageEnvelop)
+	Callback func(ctx context.Context, msg routing.MessageEnvelop)
 }
 
 type MessageEnvelop struct {
@@ -72,7 +66,7 @@ func (msg *MessageEnvelop) MessageMap() (map[string]any, error) {
 }
 
 // NewRoute initializes and returns a new NATSRoute instance.
-func NewRoute(config *NatConfig, callback func(msg routing.MessageEnvelop)) *Route {
+func NewRoute(config *NatConfig, callback func(ctx context.Context, msg routing.MessageEnvelop)) *Route {
 	return &Route{Config: config, Callback: callback}
 }
 
@@ -174,20 +168,18 @@ func (r *Route) Subscribe(ctx context.Context) error {
 			return
 		}
 		envelop := &MessageEnvelop{Msg: msg}
-		r.Callback(envelop)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to acknowledge message: %w", err)
+		r.Callback(ctx, envelop)
 	}
 
 	if r.Config.JetStreamEnabled() {
-
+		log.Printf("Subscribing to JetStream subject: %s", r.Config.Subject)
 	}
 
 	if r.Config.Queue != nil {
+		log.Printf("Subscribing to queue subject: %s", r.Config.Subject)
 		r.sub, err = r.nc.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback)
 	} else {
+		log.Printf("Subscribing to NATS subject: %s", r.Config.Subject)
 		r.sub, err = r.nc.Subscribe(r.Config.Subject, callback)
 	}
 
