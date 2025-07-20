@@ -70,6 +70,41 @@ func NewRoute(config *NatConfig, callback func(ctx context.Context, msg routing.
 	return &Route{Config: config, Callback: callback}
 }
 
+func NewRouteUsingSelector(ctx context.Context, selector string) (*Route, error) {
+	config, err := LoadConfigFromEnv()
+	if err != nil {
+		return nil, fmt.Errorf("failed subscribe to selector: %s when loading config: %w", selector, err)
+	}
+
+	routeConfig, err := config.FindRouteBySelector(selector)
+	if err != nil {
+		return nil, fmt.Errorf("error finding route selector: %s; err: %v", selector, err)
+	}
+
+	// otherwise subscribe to the route with the callback for when messages are received
+	natsRoute := NewRoute(routeConfig, nil)
+	if err = natsRoute.Connect(ctx); err != nil {
+		log.Fatalf("error connecting to monitor route: %v", err)
+	}
+	return natsRoute, nil
+}
+
+func NewRouteSubscriberUsingSelector(ctx context.Context, selector string, callback func(ctx context.Context, msg routing.MessageEnvelop)) (*Route, error) {
+	natsRoute, err := NewRouteUsingSelector(ctx, selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed subscribe to selector: %s; err: %w", selector, err)
+	}
+
+	// set the callback, in order to handle messages at the root
+	natsRoute.Callback = callback
+
+	// subscribe to the route with the callback for when messages are received
+	if err = natsRoute.Subscribe(ctx); err != nil {
+		return nil, fmt.Errorf("unable to subscribe: %v", err)
+	}
+	return natsRoute, nil
+}
+
 // Connect establishes a connection to the NATS server, initializing JetStream if enabled.
 func (r *Route) Connect(ctx context.Context) error {
 	r.mu.Lock()
