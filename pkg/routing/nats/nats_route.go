@@ -51,7 +51,7 @@ func NewRoute(route *NatConfig) *Route {
 
 // NewRouteWithCallback initializes and returns a new NATSRoute instance.
 // func NewRouteWithCallback(route *NatConfig, callback func(ctx context.Context, route *Route, msg *nats.Msg)) *Route {
-func NewRouteWithCallback(config *NatConfig, callback *MessageEnvelop) *Route {
+func NewRouteWithCallback(config *NatConfig, callback routing.MessageEnvelop) *Route {
 	return &Route{Config: config, Callback: callback}
 }
 
