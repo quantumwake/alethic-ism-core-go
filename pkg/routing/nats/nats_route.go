@@ -99,9 +99,11 @@ func NewRouteSubscriberUsingSelector(ctx context.Context, selector string, callb
 	natsRoute.Callback = callback
 
 	// subscribe to the route with the callback for when messages are received
+	log.Printf("subscribing on route: %s, selector: %s", natsRoute.Config.Subject, selector)
 	if err = natsRoute.Subscribe(ctx); err != nil {
 		return nil, fmt.Errorf("unable to subscribe: %v", err)
 	}
+	log.Printf("subscribed on route: %s, selector: %s", natsRoute.Config.Subject, selector)
 	return natsRoute, nil
 }
 
