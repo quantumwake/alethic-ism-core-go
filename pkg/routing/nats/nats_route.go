@@ -29,11 +29,7 @@ type Route struct {
 	mu   sync.Mutex
 	once sync.Once
 
-	Callback routing.MessageEnvelop
-
-	//Callback routing.MessageEnvelop // Callback function to handle incoming messages
-	//Callback func(ctx context.Context, route *Route, msg *nats.Msg)
-	//callback nats.MsgHandler
+	Callback func(msg routing.MessageEnvelop)
 }
 
 type MessageEnvelop struct {
@@ -44,14 +40,39 @@ func (msg *MessageEnvelop) Ack(ctx context.Context) error {
 	return msg.Ack(ctx)
 }
 
-// NewRoute initializes and returns a new NATSRoute instance.
-func NewRoute(route *NatConfig) *Route {
-	return &Route{Config: route, Callback: nil}
+func (msg *MessageEnvelop) Nack(ctx context.Context) error {
+	return msg.Nack(ctx)
 }
 
-// NewRouteWithCallback initializes and returns a new NATSRoute instance.
-// func NewRouteWithCallback(route *NatConfig, callback func(ctx context.Context, route *Route, msg *nats.Msg)) *Route {
-func NewRouteWithCallback(config *NatConfig, callback routing.MessageEnvelop) *Route {
+// MessageRaw return raw message []byte.
+func (msg *MessageEnvelop) MessageRaw() ([]byte, error) {
+	if msg.Msg.Data == nil {
+		return nil, errors.New("message is empty")
+	}
+	return msg.Msg.Data, nil
+}
+
+// MessageString encode raw message bytes in a string.
+func (msg *MessageEnvelop) MessageString() (string, error) {
+	raw, err := msg.MessageRaw()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode raw message in string: %w", err)
+	}
+	return string(raw), nil
+}
+
+// MessageMap return raw message in a map[string]any
+func (msg *MessageEnvelop) MessageMap() (map[string]any, error) {
+	var mapping map[string]any
+	err := json.Unmarshal(msg.Msg.Data, &mapping)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode raw message in string: %w", err)
+	}
+	return mapping, nil
+}
+
+// NewRoute initializes and returns a new NATSRoute instance.
+func NewRoute(config *NatConfig, callback func(msg routing.MessageEnvelop)) *Route {
 	return &Route{Config: config, Callback: callback}
 }
 
@@ -115,7 +136,7 @@ func (r *Route) Request(ctx context.Context, msg interface{}) (*nats.Msg, error)
 
 // Publish publishes a message to the subject, either via JetStream or standard NATS.
 // func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
-func (r *Route) Publish(ctx context.Context, msg interface{}) error {
+func (r *Route) Publish(ctx context.Context, msg any) error {
 	data, err := toBytes(msg)
 	if err != nil {
 		return fmt.Errorf("failed to serialize message: %w", err)
@@ -152,7 +173,8 @@ func (r *Route) Subscribe(ctx context.Context) error {
 			log.Printf("no callback function defined for message: %v on subject: %s", msg.Data, msg.Subject)
 			return
 		}
-		err = r.Callback.Ack(ctx)
+		envelop := &MessageEnvelop{Msg: msg}
+		r.Callback(envelop)
 	}
 
 	if err != nil {
@@ -224,7 +246,7 @@ func toBytes(msg interface{}) ([]byte, error) {
 	case string:
 		// if a string then turn it into bytes
 		return []byte(v), nil
-	case map[string]interface{}:
+	case map[string]any:
 		// If it's a map, marshal it to JSON
 		data, err = json.Marshal(v)
 		if err != nil {
