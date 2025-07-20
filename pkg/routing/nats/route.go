@@ -1,4 +1,4 @@
-package config
+package nats
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-type Route struct {
+type NatConfig struct {
 	Selector string  `yaml:"selector"`
 	Name     *string `yaml:"name,omitempty"`  // Optional field
 	Queue    *string `yaml:"queue,omitempty"` // Optional field
@@ -17,32 +17,32 @@ type Route struct {
 	URL      string  `yaml:"url"`
 }
 
-func (r *Route) String() string {
+func (r *NatConfig) String() string {
 	if r == nil {
 		return "<nil>"
 	}
 	return fmt.Sprintf("selector: %s, name: %v, queue: %v, subject: %s, url: %s", r.Selector, r.Name, r.Queue, r.Subject, r.URL)
 }
 
-type MessageConfig struct {
-	Routes []Route `yaml:"routes"`
-}
-
-type Config struct {
-	MessageConfig MessageConfig `yaml:"messageConfig"`
-
-	selectorMap map[string]*Route
-	subjectMap  map[string]*Route
-}
-
 // if the queue is set then
-func (r *Route) JetStreamEnabled() bool {
+func (r *NatConfig) JetStreamEnabled() bool {
 	if r.Queue != nil && r.Name != nil {
 		return true
 	}
 
 	log.Println(fmt.Sprintf("JetStream is disabled, js name: %v, queue: %v, subject: %v", r.Name, r.Queue, r.Subject))
 	return false
+}
+
+type MessageConfig struct {
+	Routes []NatConfig `yaml:"routes"`
+}
+
+type Config struct {
+	MessageConfig MessageConfig `yaml:"messageConfig"`
+
+	selectorMap map[string]*NatConfig
+	subjectMap  map[string]*NatConfig
 }
 
 // LoadConfig reads the YAML file and builds hash maps for fast route lookups
@@ -75,8 +75,8 @@ func LoadConfigFromEnv() (*Config, error) {
 
 // BuildRouteMaps builds hash maps for selector and subject for fast lookups
 func (c *Config) BuildRouteMaps() {
-	c.selectorMap = make(map[string]*Route)
-	c.subjectMap = make(map[string]*Route)
+	c.selectorMap = make(map[string]*NatConfig)
+	c.subjectMap = make(map[string]*NatConfig)
 
 	for i := range c.MessageConfig.Routes {
 		route := &c.MessageConfig.Routes[i]
@@ -86,7 +86,7 @@ func (c *Config) BuildRouteMaps() {
 }
 
 // FindRouteBySelector finds a route by its selector using the hash map
-func (c *Config) FindRouteBySelector(selector string) (*Route, error) {
+func (c *Config) FindRouteBySelector(selector string) (*NatConfig, error) {
 	route, found := c.selectorMap[selector]
 	if !found {
 		return nil, fmt.Errorf("route not found by selector %v", selector)
@@ -95,7 +95,7 @@ func (c *Config) FindRouteBySelector(selector string) (*Route, error) {
 }
 
 // FindRouteBySubject finds a route by its subject using the hash map
-func (c *Config) FindRouteBySubject(subject string) (*Route, error) {
+func (c *Config) FindRouteBySubject(subject string) (*NatConfig, error) {
 	route, found := c.subjectMap[subject]
 	if !found {
 		return nil, errors.New("route not found by subject")

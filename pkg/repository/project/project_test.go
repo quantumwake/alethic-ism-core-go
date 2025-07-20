@@ -22,18 +22,18 @@ func TestBackendStorage_InsertOrUpdate(t *testing.T) {
 	}
 
 	// insert the user
-	err := backendUser.InsertOrUpdate(usr)
+	err := backendUser.CreateOrUpdate(usr)
 	require.NoError(t, err)
 
-	// create a a list of projects
-	projects := []user.Project{
+	// create a list of projects
+	projects := []project.Project{
 		{ID: "0267a05b-8cad-49b7-8c61-49ffc221277a", UserID: usr.ID, Name: "Test Project 1"},
 		{ID: "0267a05b-8cad-49b7-8c61-49ffc221277b", UserID: usr.ID, Name: "Test Project 2"},
 	}
 
 	// insert the projects
 	for _, prj := range projects {
-		err := backendProject.InsertOrUpdate(&prj)
+		err := backendProject.CreateOrUpdate(&prj)
 		require.NoError(t, err)
 	}
 

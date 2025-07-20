@@ -1,4 +1,4 @@
-package routing
+package nats
 
 import (
 	"context"
@@ -6,20 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
-	"github.com/quantumwake/alethic-ism-core-go/pkg/routing/config"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/routing"
 	"log"
 	"sync"
 )
 
 // TODO need to make this into an interface and abstract out the backend message routing away from NATS specifics
 
-//type Route interface {
+//type NatConfig interface {
 //	func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, error) {
 //}
 
-type NATSRoute struct {
-	//Route
-	Config *config.Route
+type Route struct {
+	routing.Route
+
+	//NatConfig
+	Config *NatConfig
 
 	nc   *nats.Conn
 	js   nats.JetStreamContext
@@ -27,22 +29,34 @@ type NATSRoute struct {
 	mu   sync.Mutex
 	once sync.Once
 
-	Callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)
+	Callback routing.MessageEnvelop
+
+	//Callback routing.MessageEnvelop // Callback function to handle incoming messages
+	//Callback func(ctx context.Context, route *Route, msg *nats.Msg)
 	//callback nats.MsgHandler
 }
 
+type MessageEnvelop struct {
+	Msg *nats.Msg // The NATS message associated with this envelope
+}
+
+func (msg *MessageEnvelop) Ack(ctx context.Context) error {
+	return msg.Ack(ctx)
+}
+
 // NewNATSRoute initializes and returns a new NATSRoute instance.
-func NewNATSRoute(route *config.Route) *NATSRoute {
-	return &NATSRoute{Config: route, Callback: nil}
+func NewNATSRoute(route *NatConfig) *Route {
+	return &Route{Config: route, Callback: nil}
 }
 
 // NewNATSRouteWithCallback initializes and returns a new NATSRoute instance.
-func NewNATSRouteWithCallback(route *config.Route, callback func(ctx context.Context, route *NATSRoute, msg *nats.Msg)) *NATSRoute {
-	return &NATSRoute{Config: route, Callback: callback}
+// func NewNATSRouteWithCallback(route *NatConfig, callback func(ctx context.Context, route *Route, msg *nats.Msg)) *Route {
+func NewNATSRouteWithCallback(config *NatConfig, callback *MessageEnvelop) *Route {
+	return &Route{Config: config, Callback: callback}
 }
 
 // Connect establishes a connection to the NATS server, initializing JetStream if enabled.
-func (r *NATSRoute) Connect(ctx context.Context) error {
+func (r *Route) Connect(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -81,7 +95,7 @@ func (r *NATSRoute) Connect(ctx context.Context) error {
 }
 
 // Request sends a request and waits for a reply, returning the response.
-func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, error) {
+func (r *Route) Request(ctx context.Context, msg interface{}) (*nats.Msg, error) {
 	msgBytes, err := toBytes(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize message: %w", err)
@@ -101,7 +115,7 @@ func (r *NATSRoute) Request(ctx context.Context, msg interface{}) (*nats.Msg, er
 
 // Publish publishes a message to the subject, either via JetStream or standard NATS.
 // func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
-func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
+func (r *Route) Publish(ctx context.Context, msg interface{}) error {
 	data, err := toBytes(msg)
 	if err != nil {
 		return fmt.Errorf("failed to serialize message: %w", err)
@@ -126,24 +140,29 @@ func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
 }
 
 // Subscribe subscribes to the subject with an optional callback for handling incoming messages.
-func (r *NATSRoute) Subscribe(ctx context.Context) error {
+func (r *Route) Subscribe(ctx context.Context) error {
 	if err := r.Connect(ctx); err != nil {
 		return err
 	}
 
+	var err error
 	// wrap the callback message such that we also get the nats Config that it was received on
 	callback := func(msg *nats.Msg) {
 		if r.Callback == nil {
 			log.Printf("no callback function defined for message: %v on subject: %s", msg.Data, msg.Subject)
 			return
 		}
-		r.Callback(ctx, r, msg)
+		err = r.Callback.Ack(ctx)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to acknowledge message: %w", err)
 	}
 
 	if r.Config.JetStreamEnabled() {
 
 	}
-	var err error
+
 	if r.Config.Queue != nil {
 		r.sub, err = r.nc.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback)
 	} else {
@@ -159,7 +178,7 @@ func (r *NATSRoute) Subscribe(ctx context.Context) error {
 }
 
 // Unsubscribe unsubscribes from the subject.
-func (r *NATSRoute) Unsubscribe(ctx context.Context) error {
+func (r *Route) Unsubscribe(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -176,7 +195,7 @@ func (r *NATSRoute) Unsubscribe(ctx context.Context) error {
 }
 
 // Disconnect drains the connection and closes it.
-func (r *NATSRoute) Disconnect(ctx context.Context) error {
+func (r *Route) Disconnect(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -221,7 +240,7 @@ func toBytes(msg interface{}) ([]byte, error) {
 	return data, nil
 }
 
-func (r *NATSRoute) Flush() error {
+func (r *Route) Flush() error {
 	if r.nc == nil {
 		return errors.New("not connected to NATS")
 	}
@@ -230,7 +249,7 @@ func (r *NATSRoute) Flush() error {
 }
 
 // Drain drains and closes the connection gracefully.
-func (r *NATSRoute) Drain(ctx context.Context) error {
+func (r *Route) Drain(ctx context.Context) error {
 	if r.nc == nil || !r.nc.IsConnected() {
 		return nil // Not connected, nothing to drain
 	}

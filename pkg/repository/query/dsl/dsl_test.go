@@ -12,10 +12,9 @@ var (
 )
 
 func TestDSL(t *testing.T) {
-	query := StateQuery{
-		UserID:  "77c17315-3013-5bb8-8c42-32c28618101f",
-		StateID: "465884e9-7a08-40d0-acff-148663a7c9cf",
-	}
+	//userID := "77c17315-3013-5bb8-8c42-32c28618101f"
+	stateID := "465884e9-7a08-40d0-acff-148663a7c9cf"
+	query := StateQuery{}
 
 	// Define a filter group for ("input" = "xyz" AND "result" = "abc")
 	group1 := FilterGroup{GroupLogic: "AND"}
@@ -31,7 +30,7 @@ func TestDSL(t *testing.T) {
 	query.AddFilterGroup(group2)
 
 	// query for state data, filter by added filter criteria
-	results, err := backendQueryState.Query(query)
+	results, err := backendQueryState.Query(stateID, query)
 	assert.NoError(t, err)
 	assert.Greater(t, len(results), 0)
 }

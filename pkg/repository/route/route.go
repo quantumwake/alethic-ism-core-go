@@ -1,8 +1,8 @@
 package route
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/processor"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/processor"
 )
 
 type BackendStorage struct {
@@ -16,8 +16,8 @@ func NewBackend(dsn string) *BackendStorage {
 }
 
 // FindRouteByID methods
-func (da *BackendStorage) FindRouteByID(id string) (*processor.ProcessorState, error) {
-	var processorState processor.ProcessorState
+func (da *BackendStorage) FindRouteByID(id string) (*processor.State, error) {
+	var processorState processor.State
 	result := da.DB.Where("id = ?", id).First(&processorState)
 	if result.Error != nil {
 		return nil, result.Error
@@ -26,8 +26,8 @@ func (da *BackendStorage) FindRouteByID(id string) (*processor.ProcessorState, e
 }
 
 // FindRouteByProcessorAndDirection finds all ProcessorStates for a given processor ID and direction
-func (da *BackendStorage) FindRouteByProcessorAndDirection(processorID string, direction processor.ProcessorStateDirection) ([]processor.ProcessorState, error) {
-	var processorStates []processor.ProcessorState
+func (da *BackendStorage) FindRouteByProcessorAndDirection(processorID string, direction processor.StateDirection) ([]processor.State, error) {
+	var processorStates []processor.State
 
 	result := da.DB.
 		Where("processor_id = ? AND direction = ?", processorID, string(direction)).
@@ -37,8 +37,8 @@ func (da *BackendStorage) FindRouteByProcessorAndDirection(processorID string, d
 }
 
 // FindRouteByStateAndDirection find routes by state id and the direction it is flowing.
-func (da *BackendStorage) FindRouteByStateAndDirection(stateID string, direction processor.ProcessorStateDirection) ([]processor.ProcessorState, error) {
-	var processorStates []processor.ProcessorState
+func (da *BackendStorage) FindRouteByStateAndDirection(stateID string, direction processor.StateDirection) ([]processor.State, error) {
+	var processorStates []processor.State
 
 	result := da.DB.
 		Where("state_id = ? AND direction = ?", stateID, string(direction)).

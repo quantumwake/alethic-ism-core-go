@@ -1,7 +1,7 @@
 package route_test
 
 import (
-	"github.com/quantumwake/alethic-ism-core-go/pkg/data/models/processor"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/processor"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/route"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/repository/test"
 	"testing"

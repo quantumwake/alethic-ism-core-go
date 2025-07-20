@@ -20,7 +20,7 @@ func TestBackendStorage_InsertOrUpdate(t *testing.T) {
 	}
 
 	// insert the user
-	err := ub.InsertOrUpdate(usr)
+	err := ub.CreateOrUpdate(usr)
 	require.NoError(t, err)
 
 	// find the user by ID

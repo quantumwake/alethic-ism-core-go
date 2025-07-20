@@ -25,8 +25,8 @@ func (da *BackendStorage) FindUserByID(id string) (*User, error) {
 	return &user, nil
 }
 
-// InsertOrUpdate inserts a user if it does not exist or updates the user if it does.
-func (da *BackendStorage) InsertOrUpdate(user *User) error {
+// CreateOrUpdate inserts a user if it does not exist or updates the user if it does.
+func (da *BackendStorage) CreateOrUpdate(user *User) error {
 	result := da.DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "user_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{

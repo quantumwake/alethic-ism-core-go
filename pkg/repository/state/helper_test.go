@@ -48,14 +48,14 @@ func helperStateColumns(t *testing.T, stateID string) state.Columns {
 	return columns
 }
 
-func helperProject(t *testing.T, userID string) *user.Project {
+func helperProject(t *testing.T, userID string) *project.Project {
 	// insert project for user
-	p := &user.Project{
+	p := &project.Project{
 		ID:     "0267a05b-8cad-49b7-8c61-49ffc221277d",
 		Name:   "Test Project",
 		UserID: userID,
 	}
-	require.NoError(t, backendProject.InsertOrUpdate(p))
+	require.NoError(t, backendProject.CreateOrUpdate(p))
 	return p
 }
 
@@ -67,7 +67,7 @@ func helperUser(t *testing.T) *user.User {
 		Email:    "hello@world.com",
 		MaxUnits: 10,
 	}
-	require.NoError(t, backendUser.InsertOrUpdate(u))
+	require.NoError(t, backendUser.CreateOrUpdate(u))
 	return u
 }
 
