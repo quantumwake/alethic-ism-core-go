@@ -31,7 +31,7 @@ type MessageEnvelop struct {
 }
 
 func (msg *MessageEnvelop) Ack(ctx context.Context) error {
-	return msg.Msg.Ack()
+	return msg.Msg.Ack() // TODO need to pass in the opts
 }
 
 func (msg *MessageEnvelop) Nack(ctx context.Context) error {

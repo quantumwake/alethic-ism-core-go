@@ -46,3 +46,11 @@ func (da *BackendStorage) FindRouteByStateAndDirection(stateID string, direction
 
 	return processorStates, result.Error
 }
+
+func (da *BackendStorage) FindRouteByState(stateID string) ([]processor.State, error) {
+	var processorStates []processor.State
+	result := da.DB.
+		Where("state_id = ?", stateID).
+		Find(&processorStates)
+	return processorStates, result.Error
+}

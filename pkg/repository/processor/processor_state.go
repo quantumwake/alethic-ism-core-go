@@ -14,5 +14,5 @@ type State struct {
 
 // TableName overrides the table name used by GORM
 func (State) TableName() string {
-	return "processor"
+	return "processor_state"
 }
