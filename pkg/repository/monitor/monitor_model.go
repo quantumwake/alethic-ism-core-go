@@ -2,24 +2,18 @@ package monitor
 
 import "time"
 
-// ProcessorStateRecord represents the database model for processor state
-type ProcessorStateRecord struct {
-	ID        uint   `gorm:"primaryKey"`
-	Type      string `gorm:"not null"`
-	RouteID   string `gorm:"not null"`
-	State     string `gorm:"not null"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+// LogEvent represents the model for monitor log events
+type LogEvent struct {
+	ID                  uint      `gorm:"primaryKey;autoIncrement"`
+	LogType             string    `gorm:"column:log_type;not null"`
+	InternalReferenceID uint64    `gorm:"column:internal_reference_id"`
+	UserID              string    `gorm:"column:user_id;type:varchar(36)"`
+	ProjectID           string    `gorm:"column:project_id;type:varchar(36)"`
+	Data                string    `gorm:"column:data;type:text"`
+	Exception           string    `gorm:"column:exception;type:text"`
+	CreatedAt           time.Time `gorm:"column:created_at"`
 }
 
-// MonitorLogRecord represents the database model for monitor logs
-type MonitorLogRecord struct {
-	ID          uint   `gorm:"primaryKey"`
-	ProcessorID uint   `gorm:"not null"`
-	Type        string `gorm:"not null"`
-	RouteID     string `gorm:"not null"`
-	Status      string `gorm:"not null"`
-	Exception   string
-	Data        string `gorm:"type:jsonb"`
-	CreatedAt   time.Time
+func (LogEvent) TableName() string {
+	return "monitor_log_event"
 }
