@@ -24,7 +24,8 @@ func (r *NatConfig) String() string {
 	return fmt.Sprintf("selector: %s, name: %v, queue: %v, subject: %s, url: %s", r.Selector, r.Name, r.Queue, r.Subject, r.URL)
 }
 
-// if the queue is set then
+// TODO not necessarily as we can also hook into the nc not js
+// JetStreamEnabled if the queue is set then jetstream is enabled
 func (r *NatConfig) JetStreamEnabled() bool {
 	if r.Queue != nil && r.Name != nil {
 		return true

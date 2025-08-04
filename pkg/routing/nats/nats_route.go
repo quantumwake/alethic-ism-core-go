@@ -214,7 +214,7 @@ func (r *Route) Subscribe(ctx context.Context) error {
 
 	if r.Config.Queue != nil {
 		log.Printf("Subscribing to queue subject: %s", r.Config.Subject)
-		r.sub, err = r.nc.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback)
+		r.sub, err = r.js.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback)
 	} else {
 		log.Printf("Subscribing to NATS subject: %s", r.Config.Subject)
 		r.sub, err = r.nc.Subscribe(r.Config.Subject, callback)
