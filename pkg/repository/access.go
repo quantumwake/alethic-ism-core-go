@@ -7,6 +7,8 @@ import (
 	"gorm.io/gorm/logger"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
 
 type Access struct {
@@ -47,6 +49,31 @@ func (da *Access) Connect() error {
 	if err != nil {
 		return err
 	}
+	
+	// Get the underlying SQL database to configure connection pooling
+	sqlDB, err := da.DB.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying SQL database: %v", err)
+	}
+	
+	// Configure connection pool with environment variables, defaulting to lowest values
+	maxOpenConns := getEnvAsInt("DB_MAX_OPEN_CONNS", 1)
+	maxIdleConns := getEnvAsInt("DB_MAX_IDLE_CONNS", 1)
+	connMaxLifetimeMinutes := getEnvAsInt("DB_CONN_MAX_LIFETIME_MINUTES", 5)
+	connMaxIdleTimeMinutes := getEnvAsInt("DB_CONN_MAX_IDLE_TIME_MINUTES", 1)
+	
+	// Set maximum number of open connections
+	sqlDB.SetMaxOpenConns(maxOpenConns)
+	
+	// Set maximum number of idle connections
+	sqlDB.SetMaxIdleConns(maxIdleConns)
+	
+	// Set maximum lifetime of a connection
+	sqlDB.SetConnMaxLifetime(time.Duration(connMaxLifetimeMinutes) * time.Minute)
+	
+	// Set maximum idle time for a connection
+	sqlDB.SetConnMaxIdleTime(time.Duration(connMaxIdleTimeMinutes) * time.Minute)
+	
 	return nil
 }
 
@@ -75,4 +102,20 @@ func (da *Access) Query(query string, dest any, arguments ...any) error {
 
 func (da *Access) Close() error {
 	return nil
+}
+
+// getEnvAsInt reads an environment variable as an integer with a default value
+func getEnvAsInt(name string, defaultValue int) int {
+	valueStr, exists := os.LookupEnv(name)
+	if !exists {
+		return defaultValue
+	}
+	
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		log.Printf("Warning: Invalid integer value for %s: %s, using default: %d", name, valueStr, defaultValue)
+		return defaultValue
+	}
+	
+	return value
 }
