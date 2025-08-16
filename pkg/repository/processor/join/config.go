@@ -1,7 +1,15 @@
 package join
 
-// JoinWindowConfig defines the window configuration for join processors
-// This configuration controls the sliding window behavior for data correlation
+// JoinWindowConfig defines the window configuration for join processors.
+// This configuration controls the sliding window behavior for data correlation.
+//
+// To configure a join processor, add these properties to the processor's Properties field:
+// {
+//   "blockCountSoftLimit": 10,
+//   "blockWindowTTL": "1m",
+//   "blockPartMaxJoinCount": 1,
+//   "blockPartMaxAge": "15s"
+// }
 type JoinWindowConfig struct {
 	// BlockCountSoftLimit defines the maximum number of blocks before eviction starts
 	BlockCountSoftLimit int `json:"blockCountSoftLimit"`
