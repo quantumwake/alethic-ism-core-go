@@ -1,4 +1,4 @@
-package processor
+package join
 
 // JoinWindowConfig defines the window configuration for join processors
 // This configuration controls the sliding window behavior for data correlation
