@@ -38,6 +38,17 @@ func (da *BackendStorage) FindStateConfigKeyDefinitionsGroupByDefinitionType(sta
 	//}), nil
 }
 
+// FindStateConfigKeyDefinitionsByType finds key definitions for a given state ID and definition type.
+// This is an optimized method that directly queries for a specific type without loading the full state.
+func (da *BackendStorage) FindStateConfigKeyDefinitionsByType(stateID string, definitionType DefinitionType) (ColumnKeyDefinitions, error) {
+	var definitions []*ColumnKeyDefinition
+	result := da.DB.Where("state_id = ? AND definition_type = ?", stateID, definitionType).Find(&definitions)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return definitions, nil
+}
+
 // UpsertStateConfigKeyDefinitions inserts a new or updates an existing data key definition list for a given state.
 func (da *BackendStorage) UpsertStateConfigKeyDefinitions(definitions []*ColumnKeyDefinition) error {
 	// TODO might be a security risk due to id injection... check it over.
