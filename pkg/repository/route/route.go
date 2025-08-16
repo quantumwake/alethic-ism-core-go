@@ -54,3 +54,21 @@ func (da *BackendStorage) FindRouteByState(stateID string) ([]processor.State, e
 		Find(&processorStates)
 	return processorStates, result.Error
 }
+
+// FindRouteWithOutputsByID finds a route by ID and returns it along with all output routes for its processor
+// This consolidates two database calls into one method for better performance and caching
+func (da *BackendStorage) FindRouteWithOutputsByID(routeID string) (*processor.State, []processor.State, error) {
+	// First, find the route by ID
+	inputRoute, err := da.FindRouteByID(routeID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Then, find all output routes for the processor
+	outputRoutes, err := da.FindRouteByProcessorAndDirection(inputRoute.ProcessorID, processor.DirectionOutput)
+	if err != nil {
+		return inputRoute, nil, err
+	}
+
+	return inputRoute, outputRoutes, nil
+}
