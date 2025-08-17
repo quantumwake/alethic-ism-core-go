@@ -29,7 +29,7 @@ type WindowConfig struct {
 }
 
 // DefaultJoinWindowConfig returns the default configuration for join processors
-func DefaultJoinWindowConfig() *WindowConfig {
+func DefaultWindowConfig() *WindowConfig {
 	return &WindowConfig{
 		BlockCountSoftLimit:   10,
 		BlockWindowTTL:        "1m",
