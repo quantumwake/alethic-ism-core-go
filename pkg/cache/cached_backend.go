@@ -34,6 +34,7 @@ type CachedBackend struct {
 	defaultTTL       time.Duration     // Default TTL for cached entries
 	methodSignatures sync.Map          // Cache of method signatures to avoid reflection overhead
 	methodConfigs    sync.Map          // Per-method configuration (TTL, cache behavior)
+	keyRegistry      sync.Map          // Maps method:prefixArgs to list of full cache keys
 }
 
 // NewCachedBackend creates a new caching wrapper for any backend.
@@ -100,7 +101,20 @@ func (cb *CachedBackend) BuildCacheKey(method string, args ...interface{}) (stri
 	
 	// Use SHA256 hash to create a fixed-length key prefix
 	hash := sha256.Sum256(jsonBytes)
-	return fmt.Sprintf("%s:%x", method, hash[:8]), nil
+	cacheKey := fmt.Sprintf("%s:%x", method, hash[:8])
+	
+	// Register this key with its method and first argument (if any) for prefix invalidation
+	if len(args) > 0 {
+		// Create a registry key from method and first argument
+		registryKey := fmt.Sprintf("%s:%v", method, args[0])
+		
+		// Get or create the list of cache keys for this prefix
+		val, _ := cb.keyRegistry.LoadOrStore(registryKey, &sync.Map{})
+		keySet := val.(*sync.Map)
+		keySet.Store(cacheKey, true)
+	}
+	
+	return cacheKey, nil
 }
 
 // GetCached implements the cache-aside pattern for any function.
@@ -215,6 +229,56 @@ func (cb *CachedBackend) InvalidateMethod(ctx context.Context, method string, ar
 		return err
 	}
 	return cb.cache.Delete(ctx, cacheKey)
+}
+
+// InvalidateMethodPrefix invalidates all cache entries for a method that start with given arguments.
+// This is useful when you want to invalidate all variations of a method call that share
+// the same prefix arguments but may have different trailing arguments.
+//
+// Parameters:
+//   - ctx: Context for cache operations
+//   - method: The method name whose cache to invalidate
+//   - prefixArgs: The prefix arguments that identify the entries to invalidate
+//
+// Returns:
+//   - error: Any error from cache operations
+//
+// Example:
+//   InvalidateMethodPrefix(ctx, "FindStateFull", "state-123")
+//   // This would invalidate all entries like:
+//   // FindStateFull("state-123", flags1)
+//   // FindStateFull("state-123", flags2)
+//   // etc.
+func (cb *CachedBackend) InvalidateMethodPrefix(ctx context.Context, method string, prefixArgs ...interface{}) error {
+	// Build the registry key to find all cache keys for this method+prefix combination
+	if len(prefixArgs) == 0 {
+		// No prefix args, just delete all entries for this method
+		prefix := fmt.Sprintf("%s:", method)
+		if deleter, ok := cb.cache.(interface {
+			DeleteByPrefix(context.Context, string) error
+		}); ok {
+			return deleter.DeleteByPrefix(ctx, prefix)
+		}
+		return nil
+	}
+	
+	// Look up registered keys for this method and first argument
+	registryKey := fmt.Sprintf("%s:%v", method, prefixArgs[0])
+	if val, ok := cb.keyRegistry.Load(registryKey); ok {
+		keySet := val.(*sync.Map)
+		
+		// Delete each registered cache key
+		keySet.Range(func(key, _ interface{}) bool {
+			cacheKey := key.(string)
+			_ = cb.cache.Delete(ctx, cacheKey)
+			return true
+		})
+		
+		// Clear the registry for this prefix
+		cb.keyRegistry.Delete(registryKey)
+	}
+	
+	return nil
 }
 
 // GetBackend returns the underlying backend instance.

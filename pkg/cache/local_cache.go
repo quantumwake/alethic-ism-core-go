@@ -125,6 +125,35 @@ func (c *LocalCache) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+// DeleteByPrefix removes all cache entries whose keys start with the given prefix.
+// This is useful for invalidating groups of related cache entries.
+//
+// Parameters:
+//   - ctx: Context for the operation (currently unused but kept for interface compatibility)
+//   - prefix: The key prefix to match for deletion
+//
+// Returns:
+//   - error: Always nil for this implementation
+func (c *LocalCache) DeleteByPrefix(ctx context.Context, prefix string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Collect keys to delete (can't delete while iterating)
+	keysToDelete := make([]string, 0)
+	for key := range c.items {
+		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
+			keysToDelete = append(keysToDelete, key)
+		}
+	}
+
+	// Delete the collected keys
+	for _, key := range keysToDelete {
+		delete(c.items, key)
+	}
+
+	return nil
+}
+
 // Clear removes all entries from the cache.
 // This is useful for cache invalidation scenarios or testing.
 // Use with caution in production as it affects all cached data.
