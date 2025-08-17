@@ -16,38 +16,37 @@ type CachedBackendStorage struct {
 }
 
 // NewCachedBackend creates a new project backend with caching enabled.
-// By default, cache entries expire after 5 minutes.
+// Uses the default project configuration with provided base TTL.
 //
 // Parameters:
 //   - dsn: Database connection string
-//   - c: Cache implementation (pass nil for default in-memory cache)
+//   - c: Cache implementation
+//   - baseTTL: Base TTL for cache entries
 //
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
-func NewCachedBackend(dsn string, c cache.Cache) *CachedBackendStorage {
-	base := NewBackend(dsn)
-	cachedBackend := cache.NewCachedBackend(base, c, 5*time.Minute)
-
-	return &CachedBackendStorage{
-		CachedBackend: cachedBackend,
-		base:          base,
-	}
+func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
+	config := cache.DefaultProjectConfig(baseTTL)
+	return NewCachedBackendWithConfig(dsn, c, config)
 }
 
-// NewCachedBackendWithTTL creates a new project backend with custom cache TTL.
-// Use this when you need different cache expiration times.
+// NewCachedBackendWithConfig creates a project backend with custom TTL configuration.
+// Use this for fine-grained control over method-specific cache TTLs.
 //
 // Parameters:
 //   - dsn: Database connection string
-//   - c: Cache implementation (pass nil for default in-memory cache)
-//   - ttl: Custom time-to-live for all cached entries
+//   - c: Cache implementation
+//   - config: Method-specific TTL configuration
 //
 // Returns:
-//   - A new CachedBackendStorage instance with custom TTL
-func NewCachedBackendWithTTL(dsn string, c cache.Cache, ttl time.Duration) *CachedBackendStorage {
+//   - A new CachedBackendStorage instance with configured TTLs
+func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
-	cachedBackend := cache.NewCachedBackend(base, c, ttl)
-
+	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
+	
+	// Apply method-specific TTL configuration
+	config.ApplyToBackend(cachedBackend)
+	
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,
@@ -89,10 +88,9 @@ func (cb *CachedBackendStorage) FindByID(id string) (*Project, error) {
 func (cb *CachedBackendStorage) FindAllByUserID(userID string) ([]Project, error) {
 	ctx := context.Background()
 
-	// User project lists change less frequently, so we can use a slightly longer TTL
-	return cache.CallCachedWithTTL(cb.CachedBackend, ctx, "FindAllByUserID",
+	// Use the configured TTL for this method (set via MethodConfig)
+	return cache.CallCached(cb.CachedBackend, ctx, "FindAllByUserID",
 		[]interface{}{userID},
-		7*time.Minute, // Slightly longer TTL for user project lists
 		func() ([]Project, error) {
 			return cb.base.FindAllByUserID(userID)
 		})

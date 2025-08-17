@@ -17,44 +17,40 @@ type CachedBackendStorage struct {
 }
 
 // NewCachedBackend creates a new processor backend with caching enabled.
-// By default, cache entries expire after 5 minutes.
+// Uses the default processor configuration with provided base TTL.
 //
 // Parameters:
 //   - dsn: Database connection string
-//   - c: Cache implementation (pass nil for default in-memory cache)
+//   - c: Cache implementation
+//   - baseTTL: Base TTL for cache entries
 //
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
-//
-// Example:
-//   cache := cache.NewLocalCache(nil)
-//   backend := NewCachedBackend(dsn, cache)
-func NewCachedBackend(dsn string, c cache.Cache) *CachedBackendStorage {
-	base := NewBackend(dsn)
-	cachedBackend := cache.NewCachedBackend(base, c, 5*time.Minute)
-	
-	return &CachedBackendStorage{
-		CachedBackend: cachedBackend,
-		base:          base,
-	}
+func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
+	config := cache.DefaultProcessorConfig(baseTTL)
+	return NewCachedBackendWithConfig(dsn, c, config)
 }
 
-// NewCachedBackendWithTTL creates a new processor backend with custom cache TTL.
-// Use this when you need different cache expiration times.
+// NewCachedBackendWithConfig creates a processor backend with custom TTL configuration.
+// Use this for fine-grained control over method-specific cache TTLs.
 //
 // Parameters:
 //   - dsn: Database connection string
-//   - c: Cache implementation (pass nil for default in-memory cache)
-//   - ttl: Custom time-to-live for all cached entries
+//   - c: Cache implementation
+//   - config: Method-specific TTL configuration
 //
 // Returns:
-//   - A new CachedBackendStorage instance with custom TTL
+//   - A new CachedBackendStorage instance with configured TTLs
 //
 // Example:
-//   backend := NewCachedBackendWithTTL(dsn, cache, 10*time.Minute)
-func NewCachedBackendWithTTL(dsn string, c cache.Cache, ttl time.Duration) *CachedBackendStorage {
+//   config := cache.DefaultProcessorConfig(30*time.Second)
+//   backend := NewCachedBackendWithConfig(dsn, cache, config)
+func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
-	cachedBackend := cache.NewCachedBackend(base, c, ttl)
+	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
+	
+	// Apply method-specific TTL configuration
+	config.ApplyToBackend(cachedBackend)
 	
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
@@ -179,8 +175,8 @@ func (cb *CachedBackendStorage) FindProviderByClass(className Class) ([]*Provide
 		})
 }
 
-// FindProviderClasses retrieves all available provider classes with extended caching.
-// Provider classes are static configuration that rarely changes, so we use a longer TTL (10 minutes).
+// FindProviderClasses retrieves all available provider classes with caching.
+// Provider classes are static configuration that rarely changes.
 // Cache key format: "FindProviderClasses:hash()"
 //
 // Returns:
@@ -189,9 +185,8 @@ func (cb *CachedBackendStorage) FindProviderByClass(className Class) ([]*Provide
 func (cb *CachedBackendStorage) FindProviderClasses() ([]ProviderClass, error) {
 	ctx := context.Background()
 	
-	// Use longer TTL for static configuration data
-	return cache.CallCachedWithTTL(cb.CachedBackend, ctx, "FindProviderClasses", []interface{}{}, 
-		10*time.Minute,
+	// Use the configured TTL for this method (set via MethodConfig)
+	return cache.CallCached(cb.CachedBackend, ctx, "FindProviderClasses", []interface{}{},
 		func() ([]ProviderClass, error) {
 			return cb.base.FindProviderClasses()
 		})

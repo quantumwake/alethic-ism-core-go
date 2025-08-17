@@ -17,38 +17,37 @@ type CachedBackendStorage struct {
 }
 
 // NewCachedBackend creates a new route backend with caching enabled.
-// By default, cache entries expire after 5 minutes.
+// Uses the default route configuration with provided base TTL.
 //
 // Parameters:
 //   - dsn: Database connection string
-//   - c: Cache implementation (pass nil for default in-memory cache)
+//   - c: Cache implementation
+//   - baseTTL: Base TTL for cache entries
 //
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
-func NewCachedBackend(dsn string, c cache.Cache) *CachedBackendStorage {
-	base := NewBackend(dsn)
-	cachedBackend := cache.NewCachedBackend(base, c, 5*time.Minute)
-
-	return &CachedBackendStorage{
-		CachedBackend: cachedBackend,
-		base:          base,
-	}
+func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
+	config := cache.DefaultRouteConfig(baseTTL)
+	return NewCachedBackendWithConfig(dsn, c, config)
 }
 
-// NewCachedBackendWithTTL creates a new route backend with custom cache TTL.
-// Use this when you need different cache expiration times.
+// NewCachedBackendWithConfig creates a route backend with custom TTL configuration.
+// Use this for fine-grained control over method-specific cache TTLs.
 //
 // Parameters:
 //   - dsn: Database connection string
-//   - c: Cache implementation (pass nil for default in-memory cache)
-//   - ttl: Custom time-to-live for all cached entries
+//   - c: Cache implementation
+//   - config: Method-specific TTL configuration
 //
 // Returns:
-//   - A new CachedBackendStorage instance with custom TTL
-func NewCachedBackendWithTTL(dsn string, c cache.Cache, ttl time.Duration) *CachedBackendStorage {
+//   - A new CachedBackendStorage instance with configured TTLs
+func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
-	cachedBackend := cache.NewCachedBackend(base, c, ttl)
-
+	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
+	
+	// Apply method-specific TTL configuration
+	config.ApplyToBackend(cachedBackend)
+	
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,
