@@ -9,6 +9,7 @@ import (
 	"github.com/quantumwake/alethic-ism-core-go/pkg/routing"
 	"log"
 	"sync"
+	"time"
 )
 
 type Route struct {
@@ -30,12 +31,14 @@ type MessageEnvelop struct {
 	Msg *nats.Msg // The NATS message associated with this envelope
 }
 
+// Ack acknowledges the message, indicating successful processing.
 func (msg *MessageEnvelop) Ack(ctx context.Context) error {
 	return msg.Msg.Ack() // TODO need to pass in the opts
 }
 
-func (msg *MessageEnvelop) Nack(ctx context.Context) error {
-	return msg.Nack(ctx)
+// NakWithDelay acknowledges the message with a negative acknowledgment, allowing it to be redelivered later.
+func (msg *MessageEnvelop) NakWithDelay(ctx context.Context, delay time.Duration) error {
+	return msg.Msg.NakWithDelay(delay) // Nack with a delay
 }
 
 // MessageRaw return raw message []byte.
