@@ -28,7 +28,7 @@ type WindowConfig struct {
 	BlockPartMaxAge string `json:"blockPartMaxAge"`
 }
 
-// DefaultJoinWindowConfig returns the default configuration for join processors
+// DefaultWindowConfig returns the default configuration for join processors
 func DefaultWindowConfig() *WindowConfig {
 	return &WindowConfig{
 		BlockCountSoftLimit:   10,
