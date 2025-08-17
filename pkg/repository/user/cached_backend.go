@@ -15,6 +15,16 @@ type CachedBackendStorage struct {
 	base *BackendStorage  // The underlying user backend
 }
 
+// DefaultConfig returns the default TTL configuration for user backend.
+func DefaultConfig(baseTTL time.Duration) *cache.MethodTTLConfig {
+	config := cache.NewMethodTTLConfig(baseTTL)
+
+	// User profiles are very stable
+	config.SetMethodTTL("FindUserByID", 15*time.Minute)
+
+	return config
+}
+
 // NewCachedBackend creates a new user backend with caching enabled.
 // Uses the default user configuration with provided base TTL.
 //
@@ -26,7 +36,7 @@ type CachedBackendStorage struct {
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
 func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
-	config := cache.DefaultUserConfig(baseTTL)
+	config := DefaultConfig(baseTTL)
 	return NewCachedBackendWithConfig(dsn, c, config)
 }
 

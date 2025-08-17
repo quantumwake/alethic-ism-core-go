@@ -16,6 +16,25 @@ type CachedBackendStorage struct {
 	base *BackendStorage               // The underlying processor backend
 }
 
+// DefaultConfig returns the default TTL configuration for processor backend.
+func DefaultConfig(baseTTL time.Duration) *cache.MethodTTLConfig {
+	config := cache.NewMethodTTLConfig(baseTTL)
+
+	// Provider classes are static configuration
+	config.SetMethodTTL("FindProviderClasses", 10*time.Minute)
+
+	// Providers change less frequently
+	config.SetMethodTTL("FindProviders", 5*time.Minute)
+	config.SetMethodTTL("FindProviderByClass", 5*time.Minute)
+	config.SetMethodTTL("FindProviderByClassUserAndProject", 5*time.Minute)
+
+	// Processors are accessed frequently but change occasionally
+	config.SetMethodTTL("FindProcessorByID", baseTTL)
+	config.SetMethodTTL("FindProcessorByProjectID", baseTTL)
+
+	return config
+}
+
 // NewCachedBackend creates a new processor backend with caching enabled.
 // Uses the default processor configuration with provided base TTL.
 //
@@ -27,7 +46,7 @@ type CachedBackendStorage struct {
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
 func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
-	config := cache.DefaultProcessorConfig(baseTTL)
+	config := DefaultConfig(baseTTL)
 	return NewCachedBackendWithConfig(dsn, c, config)
 }
 

@@ -16,6 +16,20 @@ type CachedBackendStorage struct {
 	base *BackendStorage  // The underlying route backend
 }
 
+// DefaultConfig returns the default TTL configuration for route backend.
+func DefaultConfig(baseTTL time.Duration) *cache.MethodTTLConfig {
+	config := cache.NewMethodTTLConfig(baseTTL)
+
+	// Routes are relatively static once configured
+	config.SetMethodTTL("FindRouteByID", baseTTL)
+	config.SetMethodTTL("FindRouteByProcessorAndDirection", baseTTL)
+	config.SetMethodTTL("FindRouteByStateAndDirection", baseTTL)
+	config.SetMethodTTL("FindRouteByState", baseTTL)
+	config.SetMethodTTL("FindRouteWithOutputsByID", baseTTL)
+
+	return config
+}
+
 // NewCachedBackend creates a new route backend with caching enabled.
 // Uses the default route configuration with provided base TTL.
 //
@@ -27,7 +41,7 @@ type CachedBackendStorage struct {
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
 func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
-	config := cache.DefaultRouteConfig(baseTTL)
+	config := DefaultConfig(baseTTL)
 	return NewCachedBackendWithConfig(dsn, c, config)
 }
 

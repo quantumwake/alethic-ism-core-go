@@ -15,6 +15,17 @@ type CachedBackendStorage struct {
 	base *BackendStorage  // The underlying project backend
 }
 
+// DefaultConfig returns the default TTL configuration for project backend.
+func DefaultConfig(baseTTL time.Duration) *cache.MethodTTLConfig {
+	config := cache.NewMethodTTLConfig(baseTTL)
+
+	// Projects change occasionally
+	config.SetMethodTTL("FindByID", baseTTL)
+	config.SetMethodTTL("FindAllByUserID", baseTTL+2*time.Minute) // Slightly longer for lists
+
+	return config
+}
+
 // NewCachedBackend creates a new project backend with caching enabled.
 // Uses the default project configuration with provided base TTL.
 //
@@ -26,7 +37,7 @@ type CachedBackendStorage struct {
 // Returns:
 //   - A new CachedBackendStorage instance with caching enabled
 func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedBackendStorage {
-	config := cache.DefaultProjectConfig(baseTTL)
+	config := DefaultConfig(baseTTL)
 	return NewCachedBackendWithConfig(dsn, c, config)
 }
 

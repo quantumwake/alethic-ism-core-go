@@ -81,21 +81,21 @@ func SetupCustomCachedBackends() error {
 
 ## Default TTL Configurations
 
-Each backend has sensible defaults based on data characteristics:
+Each backend has sensible defaults defined in their respective packages:
 
-### Processor Backend
+### Processor Backend (`processor.DefaultConfig`)
 - `FindProviderClasses`: 10 minutes (static configuration)
 - `FindProviders`: 5 minutes (changes occasionally)
 - `FindProcessorByID`: base TTL (frequently accessed)
 
-### User Backend
+### User Backend (`user.DefaultConfig`)
 - `FindUserByID`: 15 minutes (very stable data)
 
-### Project Backend
+### Project Backend (`project.DefaultConfig`)
 - `FindByID`: base TTL
 - `FindAllByUserID`: base TTL + 2 minutes (lists change less frequently)
 
-### Route Backend
+### Route Backend (`route.DefaultConfig`)
 - All methods use base TTL (routes are relatively static)
 
 ## Key Benefits
