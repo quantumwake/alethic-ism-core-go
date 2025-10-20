@@ -17,6 +17,8 @@ type NatConfig struct {
 	URL           string  `yaml:"url"`
 	MaxAckPending *int    `yaml:"max_ack_pending,omitempty"` // Optional: JetStream max unacked messages
 	AckWait       *int    `yaml:"ack_wait,omitempty"`        // Optional: JetStream ack wait in seconds
+	Mode          *string `yaml:"mode,omitempty"`            // Optional: "push" (default), "pull", "request-reply"
+	BatchSize     *int    `yaml:"batch_size,omitempty"`      // Optional: Batch size for pull mode (default 10)
 }
 
 func (r *NatConfig) String() string {

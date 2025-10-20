@@ -200,8 +200,32 @@ func (r *Route) Subscribe(ctx context.Context) error {
 		return err
 	}
 
+	mode := "push" // default mode
+	if r.Config.Mode != nil {
+		mode = *r.Config.Mode
+	}
+
+	if r.Config.JetStreamEnabled() {
+		log.Printf("Subscribing to JetStream subject: %s (mode: %s)", r.Config.Subject, mode)
+	}
+
 	var err error
-	// wrap the callback message such that we also get the nats Config that it was received on
+	if mode == "pull" {
+		err = r.subscribePull(ctx)
+	} else {
+		err = r.subscribePush(ctx)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to subject: %w", err)
+	}
+
+	log.Printf("Subscribed to subject: %s\n", r.Config.Subject)
+	return nil
+}
+
+// subscribePush handles push-based subscription
+func (r *Route) subscribePush(ctx context.Context) error {
 	callback := func(msg *nats.Msg) {
 		if r.Callback == nil {
 			log.Printf("no callback function defined for message: %v on subject: %s", msg.Data, msg.Subject)
@@ -211,10 +235,7 @@ func (r *Route) Subscribe(ctx context.Context) error {
 		r.Callback(ctx, envelop)
 	}
 
-	if r.Config.JetStreamEnabled() {
-		log.Printf("Subscribing to JetStream subject: %s", r.Config.Subject)
-	}
-
+	var err error
 	if r.Config.Queue != nil {
 		log.Printf("Subscribing to queue subject: %s", r.Config.Subject)
 		opts := buildJetStreamOptions(r.Config)
@@ -224,11 +245,66 @@ func (r *Route) Subscribe(ctx context.Context) error {
 		r.sub, err = r.nc.Subscribe(r.Config.Subject, callback)
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to subject: %w", err)
+	return err
+}
+
+// subscribePull handles pull-based subscription
+func (r *Route) subscribePull(ctx context.Context) error {
+	batchSize := 10 // default
+	if r.Config.BatchSize != nil {
+		batchSize = *r.Config.BatchSize
 	}
 
-	log.Printf("Subscribed to subject: %s\n", r.Config.Subject)
+	opts := buildJetStreamOptions(r.Config)
+
+	// For pull subscribers, the queue name is used as the durable consumer name
+	// If not set, creates an ephemeral consumer
+	durableName := ""
+	if r.Config.Queue != nil {
+		durableName = *r.Config.Queue
+		log.Printf("Creating durable pull subscriber: %s", durableName)
+	} else {
+		log.Printf("Creating ephemeral pull subscriber (no durable name)")
+	}
+
+	sub, err := r.js.PullSubscribe(r.Config.Subject, durableName, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create pull subscriber: %w", err)
+	}
+	r.sub = sub
+
+	log.Printf("Starting pull consumer with batch size: %d", batchSize)
+
+	// Start background goroutine to pull messages
+	go func() {
+		for {
+			// Check if context is cancelled before fetching
+			select {
+			case <-ctx.Done():
+				log.Printf("Pull subscriber shutting down: %v", ctx.Err())
+				return
+			default:
+				// Continue to fetch
+			}
+
+			msgs, err := sub.Fetch(batchSize, nats.MaxWait(5*time.Second))
+			if err != nil {
+				if errors.Is(err, nats.ErrTimeout) {
+					continue // No messages available, keep polling
+				}
+				log.Printf("Error fetching messages: %v", err)
+				continue
+			}
+
+			for _, msg := range msgs {
+				if r.Callback != nil {
+					envelop := &MessageEnvelop{Msg: msg}
+					r.Callback(ctx, envelop)
+				}
+			}
+		}
+	}()
+
 	return nil
 }
 
