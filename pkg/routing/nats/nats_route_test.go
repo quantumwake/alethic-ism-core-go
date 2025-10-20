@@ -15,6 +15,19 @@ type MockData struct {
 	LastName  string `json:"last_name"`
 }
 
+func TestRoute_SubscribePublishTest(t *testing.T) {
+	ctx := context.Background()
+
+	config := &NatConfig{
+		Selector: "test/subscribe/name/*",
+		Name:     ptr.String("test_subscribe_name"),
+		Queue:    ptr.String("test_subscribe_queue"),
+		Subject:  "test.subscribe.queue",
+		URL:      "nats://localhost:4222",
+	}
+
+}
+
 func TestRoute_Subscribe(t *testing.T) {
 
 	ctx := context.Background()

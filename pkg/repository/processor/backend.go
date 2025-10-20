@@ -120,3 +120,12 @@ func (da *BackendStorage) CreateOrUpdateProvider(provider *Provider) error {
 	}
 	return nil
 }
+
+func (da *BackendStorage) FindProviderByID(providerID string) (*Provider, error) {
+	var provider Provider
+	if err := da.DB.Where("id = ?", providerID).First(&provider).Error; err != nil {
+		log.Printf("error fetching provider by ID: %s, error: %v", providerID, err)
+		return nil, err
+	}
+	return &provider, nil
+}

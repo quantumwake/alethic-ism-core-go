@@ -10,11 +10,13 @@ import (
 )
 
 type NatConfig struct {
-	Selector string  `yaml:"selector"`
-	Name     *string `yaml:"name,omitempty"`  // Optional field
-	Queue    *string `yaml:"queue,omitempty"` // Optional field
-	Subject  string  `yaml:"subject"`
-	URL      string  `yaml:"url"`
+	Selector      string  `yaml:"selector"`
+	Name          *string `yaml:"name,omitempty"`            // Optional field
+	Queue         *string `yaml:"queue,omitempty"`           // Optional field
+	Subject       string  `yaml:"subject"`
+	URL           string  `yaml:"url"`
+	MaxAckPending *int    `yaml:"max_ack_pending,omitempty"` // Optional: JetStream max unacked messages
+	AckWait       *int    `yaml:"ack_wait,omitempty"`        // Optional: JetStream ack wait in seconds
 }
 
 func (r *NatConfig) String() string {
@@ -102,4 +104,38 @@ func (c *Config) FindRouteBySubject(subject string) (*NatConfig, error) {
 		return nil, errors.New("route not found by subject")
 	}
 	return route, nil
+}
+
+// FindRouteBySelectorWildcard finds a route by its selector with wildcard support
+// First attempts exact match, then checks for prefix match with "/*" wildcard suffix
+// Returns error if no match or multiple matches found
+func (c *Config) FindRouteBySelectorWildcard(selector string) (*NatConfig, error) {
+	// Try exact match first
+	if route, found := c.selectorMap[selector]; found {
+		return route, nil
+	}
+
+	// Check for prefix match with /* wildcard
+	var matches []*NatConfig
+	for key, route := range c.selectorMap {
+		if len(key) >= 2 && key[len(key)-2:] == "/*" {
+			prefix := key[:len(key)-2]
+			if len(selector) >= len(prefix) && selector[:len(prefix)] == prefix {
+				matches = append(matches, route)
+			}
+		}
+	}
+
+	// Return if exactly one match found
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+
+	// Error if multiple matches
+	if len(matches) > 1 {
+		return nil, fmt.Errorf("multiple routes found for wildcard selector %s", selector)
+	}
+
+	// No matches found
+	return nil, fmt.Errorf("route not found by selector %s (including wildcard search)", selector)
 }

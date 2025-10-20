@@ -150,7 +150,7 @@ func (r *Route) Connect(ctx context.Context) error {
 }
 
 // Request sends a request and waits for a reply, returning the response.
-func (r *Route) Request(ctx context.Context, msg interface{}) (*nats.Msg, error) {
+func (r *Route) Request(ctx context.Context, msg any) (*nats.Msg, error) {
 	msgBytes, err := toBytes(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize message: %w", err)
@@ -169,7 +169,7 @@ func (r *Route) Request(ctx context.Context, msg interface{}) (*nats.Msg, error)
 }
 
 // Publish publishes a message to the subject, either via JetStream or standard NATS.
-// func (r *NATSRoute) Publish(ctx context.Context, msg interface{}) error {
+// func (r *NATSRoute) Publish(ctx context.Context, msg any) error {
 func (r *Route) Publish(ctx context.Context, msg any) error {
 	data, err := toBytes(msg)
 	if err != nil {
@@ -217,7 +217,8 @@ func (r *Route) Subscribe(ctx context.Context) error {
 
 	if r.Config.Queue != nil {
 		log.Printf("Subscribing to queue subject: %s", r.Config.Subject)
-		r.sub, err = r.js.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback)
+		opts := buildJetStreamOptions(r.Config)
+		r.sub, err = r.js.QueueSubscribe(r.Config.Subject, *r.Config.Queue, callback, opts...)
 	} else {
 		log.Printf("Subscribing to NATS subject: %s", r.Config.Subject)
 		r.sub, err = r.nc.Subscribe(r.Config.Subject, callback)
@@ -267,7 +268,7 @@ func (r *Route) Disconnect(ctx context.Context) error {
 }
 
 // toBytes converts a message to a byte slice.
-func toBytes(msg interface{}) ([]byte, error) {
+func toBytes(msg any) ([]byte, error) {
 	var data []byte
 	var err error
 
@@ -314,4 +315,22 @@ func (r *Route) Drain() error {
 	}
 
 	return nil
+}
+
+// buildJetStreamOptions builds JetStream consumer options from NatConfig
+func buildJetStreamOptions(config *NatConfig) []nats.SubOpt {
+	var opts []nats.SubOpt
+
+	if config.MaxAckPending != nil {
+		opts = append(opts, nats.MaxAckPending(*config.MaxAckPending))
+		log.Printf("Setting MaxAckPending: %d", *config.MaxAckPending)
+	}
+
+	if config.AckWait != nil {
+		ackWait := time.Duration(*config.AckWait) * time.Second
+		opts = append(opts, nats.AckWait(ackWait))
+		log.Printf("Setting AckWait: %v", ackWait)
+	}
+
+	return opts
 }
