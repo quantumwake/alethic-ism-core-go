@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
+	"time"
+
 	"github.com/nats-io/nats.go"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/cache"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/routing"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
-	"log"
-	"sync"
-	"time"
 )
 
 var (
@@ -457,7 +458,7 @@ func toBytes(msg any) ([]byte, error) {
 	switch v := msg.(type) {
 	case []byte:
 		// If it's already a byte array, use it directly
-		v = data
+		data = v
 	case string:
 		// if a string then turn it into bytes
 		return []byte(v), nil
