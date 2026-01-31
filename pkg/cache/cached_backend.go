@@ -17,12 +17,12 @@ type CacheableBackend interface{}
 // methodSignature stores reflection metadata about a method to avoid repeated reflection calls.
 // This significantly improves performance for dynamic method invocation.
 type methodSignature struct {
-	Type       reflect.Type                               // The function type
-	Value      reflect.Value                              // The function value
-	NumIn      int                                        // Number of input parameters
-	NumOut     int                                        // Number of output parameters  
-	IsVariadic bool                                       // Whether the function is variadic
-	CallFunc   func([]reflect.Value) []reflect.Value     // Cached Call function
+	Type       reflect.Type                          // The function type
+	Value      reflect.Value                         // The function value
+	NumIn      int                                   // Number of input parameters
+	NumOut     int                                   // Number of output parameters
+	IsVariadic bool                                  // Whether the function is variadic
+	CallFunc   func([]reflect.Value) []reflect.Value // Cached Call function
 }
 
 // CachedBackend provides a generic caching wrapper for any backend implementation.
@@ -30,11 +30,11 @@ type methodSignature struct {
 // This struct enables consistent caching behavior across different backend types.
 type CachedBackend struct {
 	backend          CacheableBackend // The underlying backend being wrapped
-	cache            Cache             // The cache implementation (local, Redis, etc.)
-	defaultTTL       time.Duration     // Default TTL for cached entries
-	methodSignatures sync.Map          // Cache of method signatures to avoid reflection overhead
-	methodConfigs    sync.Map          // Per-method configuration (TTL, cache behavior)
-	keyRegistry      sync.Map          // Maps method:prefixArgs to list of full cache keys
+	cache            Cache            // The cache implementation (local, Redis, etc.)
+	defaultTTL       time.Duration    // Default TTL for cached entries
+	methodSignatures sync.Map         // Cache of method signatures to avoid reflection overhead
+	methodConfigs    sync.Map         // Per-method configuration (TTL, cache behavior)
+	keyRegistry      sync.Map         // Maps method:prefixArgs to list of full cache keys
 }
 
 // NewCachedBackend creates a new caching wrapper for any backend.
@@ -56,16 +56,16 @@ func NewCachedBackend(backend CacheableBackend, cache Cache, defaultTTL time.Dur
 		// Default to 5 minutes if no TTL specified
 		defaultTTL = 5 * time.Minute
 	}
-	
+
 	cb := &CachedBackend{
 		backend:    backend,
 		cache:      cache,
 		defaultTTL: defaultTTL,
 	}
-	
+
 	// Auto-discover and register backend methods if possible
 	cb.AutoRegisterMethods(backend)
-	
+
 	return cb
 }
 
@@ -82,8 +82,9 @@ func NewCachedBackend(backend CacheableBackend, cache Cache, defaultTTL time.Dur
 //   - error: If marshaling arguments fails
 //
 // Example:
-//   key, _ := BuildCacheKey("FindUserByID", "user-123")
-//   // Returns: "FindUserByID:a3b4c5d6"
+//
+//	key, _ := BuildCacheKey("FindUserByID", "user-123")
+//	// Returns: "FindUserByID:a3b4c5d6"
 func (cb *CachedBackend) BuildCacheKey(method string, args ...interface{}) (string, error) {
 	keyData := struct {
 		Method string        `json:"method"`
@@ -92,28 +93,28 @@ func (cb *CachedBackend) BuildCacheKey(method string, args ...interface{}) (stri
 		Method: method,
 		Args:   args,
 	}
-	
+
 	// Serialize to JSON for consistent representation
 	jsonBytes, err := json.Marshal(keyData)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal cache key: %w", err)
 	}
-	
+
 	// Use SHA256 hash to create a fixed-length key prefix
 	hash := sha256.Sum256(jsonBytes)
 	cacheKey := fmt.Sprintf("%s:%x", method, hash[:8])
-	
+
 	// Register this key with its method and first argument (if any) for prefix invalidation
 	if len(args) > 0 {
 		// Create a registry key from method and first argument
 		registryKey := fmt.Sprintf("%s:%v", method, args[0])
-		
+
 		// Get or create the list of cache keys for this prefix
 		val, _ := cb.keyRegistry.LoadOrStore(registryKey, &sync.Map{})
 		keySet := val.(*sync.Map)
 		keySet.Store(cacheKey, true)
 	}
-	
+
 	return cacheKey, nil
 }
 
@@ -131,26 +132,26 @@ func (cb *CachedBackend) BuildCacheKey(method string, args ...interface{}) (stri
 //   - error: Any error from the fetch function
 //
 // Pattern:
-//   1. Check cache for existing value
-//   2. If found (cache hit), return cached value
-//   3. If not found (cache miss), call fetch function
-//   4. Cache the result for future requests
-//   5. Return the result
+//  1. Check cache for existing value
+//  2. If found (cache hit), return cached value
+//  3. If not found (cache miss), call fetch function
+//  4. Cache the result for future requests
+//  5. Return the result
 func (cb *CachedBackend) GetCached(ctx context.Context, cacheKey string, fetchFunc func() (interface{}, error)) (interface{}, error) {
 	// Try to get from cache first
 	if cached, found := cb.cache.Get(ctx, cacheKey); found {
 		return cached, nil
 	}
-	
+
 	// Cache miss - fetch from source
 	result, err := fetchFunc()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Store in cache for next time (ignore cache set errors)
-	_ = cb.cache.Set(ctx, cacheKey, result, cb.defaultTTL)
-	
+	cb.cache.Set(ctx, cacheKey, result, cb.defaultTTL)
+
 	return result, nil
 }
 
@@ -172,16 +173,16 @@ func (cb *CachedBackend) GetCachedWithTTL(ctx context.Context, cacheKey string, 
 	if cached, found := cb.cache.Get(ctx, cacheKey); found {
 		return cached, nil
 	}
-	
+
 	// Cache miss - fetch from source
 	result, err := fetchFunc()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Store in cache with custom TTL
-	_ = cb.cache.Set(ctx, cacheKey, result, ttl)
-	
+	cb.cache.Set(ctx, cacheKey, result, ttl)
+
 	return result, nil
 }
 
@@ -196,8 +197,9 @@ func (cb *CachedBackend) GetCachedWithTTL(ctx context.Context, cacheKey string, 
 //   - error: Any error from cache operations
 //
 // Example:
-//   InvalidateCache(ctx, "FindUserByID:123", "FindUsersByRole:admin")
-//   InvalidateCache(ctx, "*") // Clear entire cache
+//
+//	InvalidateCache(ctx, "FindUserByID:123", "FindUsersByRole:admin")
+//	InvalidateCache(ctx, "*") // Clear entire cache
 func (cb *CachedBackend) InvalidateCache(ctx context.Context, patterns ...string) error {
 	for _, pattern := range patterns {
 		if pattern == "*" {
@@ -205,7 +207,7 @@ func (cb *CachedBackend) InvalidateCache(ctx context.Context, patterns ...string
 			return cb.cache.Clear(ctx)
 		}
 		// Delete specific cache key (ignore errors)
-		_ = cb.cache.Delete(ctx, pattern)
+		cb.cache.Delete(ctx, pattern)
 	}
 	return nil
 }
@@ -222,13 +224,15 @@ func (cb *CachedBackend) InvalidateCache(ctx context.Context, patterns ...string
 //   - error: Any error from building cache key or deletion
 //
 // Example:
-//   InvalidateMethod(ctx, "FindUserByID", "user-123")
+//
+//	InvalidateMethod(ctx, "FindUserByID", "user-123")
 func (cb *CachedBackend) InvalidateMethod(ctx context.Context, method string, args ...interface{}) error {
 	cacheKey, err := cb.BuildCacheKey(method, args...)
 	if err != nil {
 		return err
 	}
-	return cb.cache.Delete(ctx, cacheKey)
+	cb.cache.Delete(ctx, cacheKey)
+	return nil
 }
 
 // InvalidateMethodPrefix invalidates all cache entries for a method that start with given arguments.
@@ -244,11 +248,12 @@ func (cb *CachedBackend) InvalidateMethod(ctx context.Context, method string, ar
 //   - error: Any error from cache operations
 //
 // Example:
-//   InvalidateMethodPrefix(ctx, "FindStateFull", "state-123")
-//   // This would invalidate all entries like:
-//   // FindStateFull("state-123", flags1)
-//   // FindStateFull("state-123", flags2)
-//   // etc.
+//
+//	InvalidateMethodPrefix(ctx, "FindStateFull", "state-123")
+//	// This would invalidate all entries like:
+//	// FindStateFull("state-123", flags1)
+//	// FindStateFull("state-123", flags2)
+//	// etc.
 func (cb *CachedBackend) InvalidateMethodPrefix(ctx context.Context, method string, prefixArgs ...interface{}) error {
 	// Build the registry key to find all cache keys for this method+prefix combination
 	if len(prefixArgs) == 0 {
@@ -261,23 +266,23 @@ func (cb *CachedBackend) InvalidateMethodPrefix(ctx context.Context, method stri
 		}
 		return nil
 	}
-	
+
 	// Look up registered keys for this method and first argument
 	registryKey := fmt.Sprintf("%s:%v", method, prefixArgs[0])
 	if val, ok := cb.keyRegistry.Load(registryKey); ok {
 		keySet := val.(*sync.Map)
-		
+
 		// Delete each registered cache key
 		keySet.Range(func(key, _ interface{}) bool {
 			cacheKey := key.(string)
-			_ = cb.cache.Delete(ctx, cacheKey)
+			cb.cache.Delete(ctx, cacheKey)
 			return true
 		})
-		
+
 		// Clear the registry for this prefix
 		cb.keyRegistry.Delete(registryKey)
 	}
-	
+
 	return nil
 }
 
@@ -310,36 +315,37 @@ func (cb *CachedBackend) GetBackend() CacheableBackend {
 //   - error: Any error from fetching
 //
 // Example:
-//   user, err := CallCached(cb, ctx, "FindUserByID", []interface{}{userID},
-//     func() (*User, error) {
-//       return backend.FindUserByID(userID)
-//     })
+//
+//	user, err := CallCached(cb, ctx, "FindUserByID", []interface{}{userID},
+//	  func() (*User, error) {
+//	    return backend.FindUserByID(userID)
+//	  })
 func CallCached[T any](cb *CachedBackend, ctx context.Context, method string, args []interface{}, fetchFunc func() (T, error)) (T, error) {
 	var zero T
-	
+
 	// Build cache key from method and arguments
 	cacheKey, err := cb.BuildCacheKey(method, args...)
 	if err != nil {
 		// If cache key generation fails, bypass cache
 		return fetchFunc()
 	}
-	
+
 	// Try to get from cache
 	cached, err := cb.GetCached(ctx, cacheKey, func() (interface{}, error) {
 		return fetchFunc()
 	})
-	
+
 	if err != nil {
 		return zero, err
 	}
-	
+
 	// Type assert the cached value
 	result, ok := cached.(T)
 	if !ok {
 		// Type assertion failed, fetch fresh data
 		return fetchFunc()
 	}
-	
+
 	return result, nil
 }
 
@@ -362,37 +368,38 @@ func CallCached[T any](cb *CachedBackend, ctx context.Context, method string, ar
 //   - error: Any error from fetching
 //
 // Example:
-//   // Cache static config for 1 hour
-//   config, err := CallCachedWithTTL(cb, ctx, "GetConfig", nil, 1*time.Hour,
-//     func() (*Config, error) {
-//       return backend.GetConfig()
-//     })
+//
+//	// Cache static config for 1 hour
+//	config, err := CallCachedWithTTL(cb, ctx, "GetConfig", nil, 1*time.Hour,
+//	  func() (*Config, error) {
+//	    return backend.GetConfig()
+//	  })
 func CallCachedWithTTL[T any](cb *CachedBackend, ctx context.Context, method string, args []interface{}, ttl time.Duration, fetchFunc func() (T, error)) (T, error) {
 	var zero T
-	
+
 	// Build cache key from method and arguments
 	cacheKey, err := cb.BuildCacheKey(method, args...)
 	if err != nil {
 		// If cache key generation fails, bypass cache
 		return fetchFunc()
 	}
-	
+
 	// Try to get from cache with custom TTL
 	cached, err := cb.GetCachedWithTTL(ctx, cacheKey, ttl, func() (interface{}, error) {
 		return fetchFunc()
 	})
-	
+
 	if err != nil {
 		return zero, err
 	}
-	
+
 	// Type assert the cached value
 	result, ok := cached.(T)
 	if !ok {
 		// Type assertion failed, fetch fresh data
 		return fetchFunc()
 	}
-	
+
 	return result, nil
 }
 
@@ -414,8 +421,8 @@ type CacheMethod struct {
 
 // MethodConfig stores configuration for a specific method.
 type MethodConfig struct {
-	TTL        time.Duration // Method-specific TTL (0 means use default)
-	Cacheable  bool          // Whether this method should be cached
+	TTL        time.Duration                   // Method-specific TTL (0 means use default)
+	Cacheable  bool                            // Whether this method should be cached
 	KeyBuilder func(args []interface{}) string // Custom key builder function
 }
 
@@ -434,7 +441,7 @@ func (cb *CachedBackend) RegisterMethod(name string, method interface{}, config 
 	if methodValue.Kind() != reflect.Func {
 		return fmt.Errorf("method must be a function")
 	}
-	
+
 	methodType := methodValue.Type()
 	sig := &methodSignature{
 		Type:       methodType,
@@ -444,13 +451,13 @@ func (cb *CachedBackend) RegisterMethod(name string, method interface{}, config 
 		IsVariadic: methodType.IsVariadic(),
 		CallFunc:   methodValue.Call,
 	}
-	
+
 	cb.methodSignatures.Store(name, sig)
-	
+
 	if config != nil {
 		cb.methodConfigs.Store(name, config)
 	}
-	
+
 	return nil
 }
 
@@ -478,7 +485,7 @@ func (cb *CachedBackend) RegisterMethods(methods map[string]interface{}) error {
 func (cb *CachedBackend) AutoRegisterMethods(backend interface{}) {
 	backendValue := reflect.ValueOf(backend)
 	backendType := backendValue.Type()
-	
+
 	// Register methods from the backend struct
 	for i := 0; i < backendType.NumMethod(); i++ {
 		method := backendType.Method(i)
@@ -518,11 +525,11 @@ func (cb *CachedBackend) Execute(ctx context.Context, methodName string, args []
 			return nil, fmt.Errorf("failed to register method %s", methodName)
 		}
 	}
-	
+
 	// For function execution, we need to prepare the arguments
 	// If the signature was registered from a method, it may need special handling
 	var callFunc func() []reflect.Value
-	
+
 	// Check if execFunc is the actual function to call
 	execValue := reflect.ValueOf(execFunc)
 	if execValue.Kind() == reflect.Func {
@@ -536,9 +543,9 @@ func (cb *CachedBackend) Execute(ctx context.Context, methodName string, args []
 			return sig.CallFunc(nil)
 		}
 	}
-	
+
 	// Check if method has custom configuration
-	var ttl time.Duration = cb.defaultTTL
+	var ttl = cb.defaultTTL
 	if config, ok := cb.methodConfigs.Load(methodName); ok {
 		methodConfig := config.(*MethodConfig)
 		if !methodConfig.Cacheable {
@@ -556,7 +563,7 @@ func (cb *CachedBackend) Execute(ctx context.Context, methodName string, args []
 			ttl = methodConfig.TTL
 		}
 	}
-	
+
 	// Build cache key
 	cacheKey, err := cb.BuildCacheKey(methodName, args...)
 	if err != nil {
@@ -570,7 +577,7 @@ func (cb *CachedBackend) Execute(ctx context.Context, methodName string, args []
 		}
 		return nil, nil
 	}
-	
+
 	// Use cache-aside pattern with configured TTL
 	return cb.GetCachedWithTTL(ctx, cacheKey, ttl, func() (interface{}, error) {
 		results := callFunc()
@@ -613,7 +620,7 @@ func (cb *CachedBackend) ExecuteWithArgs(ctx context.Context, methodName string,
 			return nil, fmt.Errorf("failed to register method %s", methodName)
 		}
 	}
-	
+
 	// Build cache key
 	cacheKey, err := cb.BuildCacheKey(methodName, cacheArgs...)
 	if err != nil {
@@ -624,7 +631,7 @@ func (cb *CachedBackend) ExecuteWithArgs(ctx context.Context, methodName string,
 		}
 		return results[0].Interface(), nil
 	}
-	
+
 	// Use cache-aside pattern
 	return cb.GetCached(ctx, cacheKey, func() (interface{}, error) {
 		results := sig.CallFunc(funcArgs)

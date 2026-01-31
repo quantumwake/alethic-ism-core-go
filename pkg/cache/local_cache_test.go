@@ -2,21 +2,20 @@ package cache
 
 import (
 	"context"
+	"fmt"
+	"github.com/stretchr/testify/require"
+	"log"
 	"testing"
 	"time"
 )
 
 func TestLocalCache_SetAndGet(t *testing.T) {
+	ctx := t.Context()
+
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
 
-	ctx := context.Background()
-
-	err := cache.Set(ctx, "key1", "value1", 1*time.Second)
-	if err != nil {
-		t.Fatalf("Failed to set cache: %v", err)
-	}
-
+	cache.Set(ctx, "key1", "value1", 1*time.Second)
 	value, found := cache.Get(ctx, "key1")
 	if !found {
 		t.Fatal("Expected to find cached value")
@@ -28,15 +27,11 @@ func TestLocalCache_SetAndGet(t *testing.T) {
 }
 
 func TestLocalCache_Expiration(t *testing.T) {
+	ctx := t.Context()
+
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
-
-	ctx := context.Background()
-
-	err := cache.Set(ctx, "key1", "value1", 100*time.Millisecond)
-	if err != nil {
-		t.Fatalf("Failed to set cache: %v", err)
-	}
+	cache.Set(ctx, "key1", "value1", 100*time.Millisecond)
 
 	value, found := cache.Get(ctx, "key1")
 	if !found {
@@ -60,15 +55,14 @@ func TestLocalCache_Delete(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := cache.Set(ctx, "key1", "value1", 1*time.Second)
-	if err != nil {
-		t.Fatalf("Failed to set cache: %v", err)
-	}
-
-	err = cache.Delete(ctx, "key1")
-	if err != nil {
-		t.Fatalf("Failed to delete cache entry: %v", err)
-	}
+	cache.Set(ctx, "key1", "value1", 1*time.Second)
+	foundKeyValue, ok := cache.Get(ctx, "key1")
+	require.True(t, ok)
+	require.Equal(t, "value1", foundKeyValue)
+	cache.Delete(ctx, "key1")
+	foundKeyValue, ok = cache.Get(ctx, "key1")
+	require.False(t, ok)
+	require.Nil(t, foundKeyValue)
 
 	_, found := cache.Get(ctx, "key1")
 	if found {
@@ -77,25 +71,13 @@ func TestLocalCache_Delete(t *testing.T) {
 }
 
 func TestLocalCache_Clear(t *testing.T) {
+	ctx := t.Context()
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
 
-	ctx := context.Background()
-
-	err := cache.Set(ctx, "key1", "value1", 1*time.Second)
-	if err != nil {
-		t.Fatalf("Failed to set cache: %v", err)
-	}
-
-	err = cache.Set(ctx, "key2", "value2", 1*time.Second)
-	if err != nil {
-		t.Fatalf("Failed to set cache: %v", err)
-	}
-
-	err = cache.Clear(ctx)
-	if err != nil {
-		t.Fatalf("Failed to clear cache: %v", err)
-	}
+	cache.Set(ctx, "key1", "value1", 1*time.Second)
+	cache.Set(ctx, "key2", "value2", 1*time.Second)
+	cache.Clear(ctx)
 
 	_, found1 := cache.Get(ctx, "key1")
 	_, found2 := cache.Get(ctx, "key2")
@@ -107,28 +89,36 @@ func TestLocalCache_Clear(t *testing.T) {
 
 func TestLocalCache_DefaultTTL(t *testing.T) {
 	config := &Config{
-		DefaultTTL: 200 * time.Millisecond,
+		DefaultTTL:              200 * time.Millisecond,
+		CleanupDurationInterval: 500 * time.Millisecond,
 	}
 	cache := NewLocalCache(config)
 	defer cache.Close()
 
 	ctx := context.Background()
 
-	err := cache.Set(ctx, "key1", "value1", 0)
-	if err != nil {
-		t.Fatalf("Failed to set cache: %v", err)
+	for i := 1; i <= 10; i++ {
+		key := fmt.Sprintf("key%d", i)
+		value := fmt.Sprintf("value%d", i)
+		ttl := time.Duration(i) * time.Second
+		cache.Set(ctx, key, value, ttl)
 	}
 
-	_, found := cache.Get(ctx, "key1")
-	if !found {
-		t.Fatal("Expected to find cached value")
-	}
+	for i := 1; i <= 10; i++ {
+		expectedKey := fmt.Sprintf("key%d", i)
+		expectedValue := fmt.Sprintf("value%d", i)
 
-	time.Sleep(250 * time.Millisecond)
+		value, ok := cache.Get(ctx, expectedKey)
+		require.True(t, ok)
+		require.Equal(t, expectedValue, value)
 
-	_, found = cache.Get(ctx, "key1")
-	if found {
-		t.Fatal("Expected cache entry to be expired using default TTL")
+		time.Sleep(1*time.Second + 50*time.Millisecond) // first item should expire.
+		expectedLen := 10 - i                           // after i-th iteration, i items should have expired
+		log.Printf("Sleeping to allow items to expire... expectedKey: %s, expectedValue: %s, expectedLen: %d\n", expectedKey, expectedValue, expectedLen)
+		require.Equal(t, expectedLen, cache.Len())
+		value, ok = cache.Get(ctx, expectedKey)
+		require.False(t, ok)
+		require.Nil(t, value)
 	}
 }
 
@@ -143,7 +133,7 @@ func TestLocalCache_ConcurrentAccess(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			key := "key"
 			value := i
-			_ = cache.Set(ctx, key, value, 1*time.Second)
+			cache.Set(ctx, key, value, 1*time.Second)
 			time.Sleep(1 * time.Millisecond)
 		}
 		done <- true

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestFindRouteBySelectorWildcard(t *testing..T) {
+func TestFindRouteBySelectorWildcard(t *testing.T) {
 	// Create a test config with wildcard routes
 	config := &Config{
 		MessageConfig: MessageConfig{

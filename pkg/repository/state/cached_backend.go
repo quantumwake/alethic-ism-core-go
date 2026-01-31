@@ -13,8 +13,8 @@ import (
 // Write operations automatically invalidate relevant cache entries to maintain consistency.
 // This implementation uses the generic cache package, making it easy to switch cache backends.
 type CachedBackendStorage struct {
-	*cache.CachedBackend               // Embedded generic caching functionality
-	base *BackendStorage               // The underlying state backend
+	*cache.CachedBackend                 // Embedded generic caching functionality
+	base                 *BackendStorage // The underlying state backend
 }
 
 // DefaultConfig returns the default TTL configuration for state backend.
@@ -27,10 +27,10 @@ func DefaultConfig(baseTTL time.Duration) *cache.MethodTTLConfig {
 
 	// Column definitions are relatively static
 	config.SetMethodTTL("FindDataColumnDefinitionsByStateID", 10*time.Minute)
-	
+
 	// Column data is accessed frequently but changes occasionally
 	config.SetMethodTTL("FindDataRowColumnDataByColumnID", baseTTL)
-	
+
 	// Config attributes and key definitions change less frequently
 	config.SetMethodTTL("FindConfigAttributes", 5*time.Minute)
 	config.SetMethodTTL("FindStateConfigKeyDefinitionsGroupByDefinitionType", 5*time.Minute)
@@ -65,15 +65,16 @@ func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedB
 //   - A new CachedBackendStorage instance with configured TTLs
 //
 // Example:
-//   config := cache.DefaultStateConfig(30*time.Second)
-//   backend := NewCachedBackendWithConfig(dsn, cache, config)
+//
+//	config := cache.DefaultStateConfig(30*time.Second)
+//	backend := NewCachedBackendWithConfig(dsn, cache, config)
 func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
 	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
-	
+
 	// Apply method-specific TTL configuration
 	config.ApplyToBackend(cachedBackend)
-	
+
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,
@@ -92,8 +93,8 @@ func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodT
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindState(id string) (*State, error) {
 	ctx := context.Background()
-	
-	return cache.CallCached(cb.CachedBackend, ctx, "FindState", []interface{}{id}, 
+
+	return cache.CallCached(cb.CachedBackend, ctx, "FindState", []interface{}{id},
 		func() (*State, error) {
 			return cb.base.FindState(id)
 		})
@@ -112,7 +113,7 @@ func (cb *CachedBackendStorage) FindState(id string) (*State, error) {
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindStateFull(id string, flags StateLoadFlags) (*State, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindStateFull", []interface{}{id, flags},
 		func() (*State, error) {
 			return cb.base.FindStateFull(id, flags)
@@ -131,13 +132,13 @@ func (cb *CachedBackendStorage) FindStateFull(id string, flags StateLoadFlags) (
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindDataRowColumnDataByColumnID(id *int64) (*DataRowColumnData, error) {
 	ctx := context.Background()
-	
+
 	// Convert pointer to value for consistent cache keys
 	var idVal int64
 	if id != nil {
 		idVal = *id
 	}
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindDataRowColumnDataByColumnID", []interface{}{idVal},
 		func() (*DataRowColumnData, error) {
 			return cb.base.FindDataRowColumnDataByColumnID(id)
@@ -156,7 +157,7 @@ func (cb *CachedBackendStorage) FindDataRowColumnDataByColumnID(id *int64) (*Dat
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindDataColumnDefinitionsByStateID(id string) (Columns, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindDataColumnDefinitionsByStateID", []interface{}{id},
 		func() (Columns, error) {
 			return cb.base.FindDataColumnDefinitionsByStateID(id)
@@ -175,7 +176,7 @@ func (cb *CachedBackendStorage) FindDataColumnDefinitionsByStateID(id string) (C
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindConfigAttributes(stateID string) (ConfigAttributes, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindConfigAttributes", []interface{}{stateID},
 		func() (ConfigAttributes, error) {
 			return cb.base.FindConfigAttributes(stateID)
@@ -194,7 +195,7 @@ func (cb *CachedBackendStorage) FindConfigAttributes(stateID string) (ConfigAttr
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindStateConfigKeyDefinitionsGroupByDefinitionType(stateID string) (TypedColumnKeyDefinitions, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindStateConfigKeyDefinitionsGroupByDefinitionType", []interface{}{stateID},
 		func() (TypedColumnKeyDefinitions, error) {
 			return cb.base.FindStateConfigKeyDefinitionsGroupByDefinitionType(stateID)
@@ -220,14 +221,14 @@ func (cb *CachedBackendStorage) UpsertState(state *State) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Invalidate cache entries that would be affected by this change
 	_ = cb.InvalidateMethod(ctx, "FindState", state.ID)
 	// Invalidate all FindStateFull entries for this state (different flag combinations)
 	_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", state.ID)
-	
+
 	return nil
 }
 
@@ -251,15 +252,15 @@ func (cb *CachedBackendStorage) UpsertStateComplete(state *State) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Invalidate all cache entries that could be affected by this change
 	_ = cb.InvalidateMethod(ctx, "FindState", state.ID)
 	_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", state.ID)
 	_ = cb.InvalidateMethod(ctx, "FindConfigAttributes", state.ID)
 	_ = cb.InvalidateMethod(ctx, "FindStateConfigKeyDefinitionsGroupByDefinitionType", state.ID)
-	
+
 	return nil
 }
 
@@ -281,21 +282,21 @@ func (cb *CachedBackendStorage) UpsertStateColumns(columns Columns) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Collect unique state IDs from the columns
 	stateIDs := make(map[string]bool)
 	for _, column := range columns {
 		stateIDs[column.StateID] = true
 	}
-	
+
 	// Invalidate cache for each affected state
 	for stateID := range stateIDs {
 		_ = cb.InvalidateMethod(ctx, "FindDataColumnDefinitionsByStateID", stateID)
 		_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", stateID)
 	}
-	
+
 	return nil
 }
 
@@ -315,15 +316,15 @@ func (cb *CachedBackendStorage) UpsertStateColumns(columns Columns) error {
 func (cb *CachedBackendStorage) DeleteStateColumns(stateID string) int {
 	// Perform the database operation
 	affected := cb.base.DeleteStateColumns(stateID)
-	
+
 	ctx := context.Background()
-	
+
 	// Invalidate cache entries that would be affected by this change
 	_ = cb.InvalidateMethod(ctx, "FindDataColumnDefinitionsByStateID", stateID)
 	_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", stateID)
 	// Note: We can't easily invalidate FindDataRowColumnDataByColumnID for specific columns
 	// without first querying them, so we might want to consider a broader invalidation
-	
+
 	return affected
 }
 
@@ -342,15 +343,15 @@ func (cb *CachedBackendStorage) DeleteStateColumns(stateID string) int {
 func (cb *CachedBackendStorage) DeleteStateColumn(id int64) bool {
 	// Perform the database operation
 	deleted := cb.base.DeleteStateColumn(id)
-	
+
 	if deleted {
 		ctx := context.Background()
-		
+
 		// Invalidate cache for this specific column
 		_ = cb.InvalidateMethod(ctx, "FindDataRowColumnDataByColumnID", id)
 		// Note: Ideally we'd also invalidate state-related caches, but we don't have the state ID
 	}
-	
+
 	return deleted
 }
 
@@ -372,13 +373,13 @@ func (cb *CachedBackendStorage) UpsertConfigAttribute(attribute *ConfigAttribute
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Invalidate cache entries that would be affected by this change
 	_ = cb.InvalidateMethod(ctx, "FindConfigAttributes", attribute.StateID)
 	_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", attribute.StateID)
-	
+
 	return nil
 }
 
@@ -400,21 +401,21 @@ func (cb *CachedBackendStorage) UpsertConfigAttributes(attributes ConfigAttribut
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Collect unique state IDs from the attributes
 	stateIDs := make(map[string]bool)
 	for _, attr := range attributes {
 		stateIDs[attr.StateID] = true
 	}
-	
+
 	// Invalidate cache for each affected state
 	for stateID := range stateIDs {
 		_ = cb.InvalidateMethod(ctx, "FindConfigAttributes", stateID)
 		_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", stateID)
 	}
-	
+
 	return nil
 }
 
@@ -436,13 +437,13 @@ func (cb *CachedBackendStorage) DeleteConfigAttributes(stateID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Invalidate cache entries that would be affected by this change
 	_ = cb.InvalidateMethod(ctx, "FindConfigAttributes", stateID)
 	_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", stateID)
-	
+
 	return nil
 }
 
@@ -458,7 +459,7 @@ func (cb *CachedBackendStorage) DeleteConfigAttributes(stateID string) error {
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindStateConfigKeyDefinitions(stateID string) (ColumnKeyDefinitions, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindStateConfigKeyDefinitions", []interface{}{stateID},
 		func() (ColumnKeyDefinitions, error) {
 			return cb.base.FindStateConfigKeyDefinitions(stateID)
@@ -478,8 +479,8 @@ func (cb *CachedBackendStorage) FindStateConfigKeyDefinitions(stateID string) (C
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindStateConfigKeyDefinitionsByType(stateID string, definitionType DefinitionType) (ColumnKeyDefinitions, error) {
 	ctx := context.Background()
-	
-	return cache.CallCached(cb.CachedBackend, ctx, "FindStateConfigKeyDefinitionsByType", 
+
+	return cache.CallCached(cb.CachedBackend, ctx, "FindStateConfigKeyDefinitionsByType",
 		[]interface{}{stateID, definitionType},
 		func() (ColumnKeyDefinitions, error) {
 			return cb.base.FindStateConfigKeyDefinitionsByType(stateID, definitionType)
@@ -506,13 +507,13 @@ func (cb *CachedBackendStorage) UpsertStateConfigKeyDefinitions(definitions []*C
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Collect unique state IDs and definition types
 	stateIDs := make(map[string]bool)
 	typesByState := make(map[string]map[DefinitionType]bool)
-	
+
 	for _, def := range definitions {
 		stateIDs[def.StateID] = true
 		if typesByState[def.StateID] == nil {
@@ -520,13 +521,13 @@ func (cb *CachedBackendStorage) UpsertStateConfigKeyDefinitions(definitions []*C
 		}
 		typesByState[def.StateID][def.DefinitionType] = true
 	}
-	
+
 	// Invalidate cache for each affected state
 	for stateID := range stateIDs {
 		_ = cb.InvalidateMethod(ctx, "FindStateConfigKeyDefinitions", stateID)
 		_ = cb.InvalidateMethod(ctx, "FindStateConfigKeyDefinitionsGroupByDefinitionType", stateID)
 		_ = cb.InvalidateMethodPrefix(ctx, "FindStateFull", stateID)
-		
+
 		// Invalidate specific type queries
 		if types, ok := typesByState[stateID]; ok {
 			for defType := range types {
@@ -534,7 +535,7 @@ func (cb *CachedBackendStorage) UpsertStateConfigKeyDefinitions(definitions []*C
 			}
 		}
 	}
-	
+
 	return nil
 }
 

@@ -11,8 +11,8 @@ import (
 // User profiles don't change frequently, making them excellent candidates for caching.
 // This implementation caches read operations and invalidates on updates.
 type CachedBackendStorage struct {
-	*cache.CachedBackend // Embedded generic caching functionality
-	base *BackendStorage  // The underlying user backend
+	*cache.CachedBackend                 // Embedded generic caching functionality
+	base                 *BackendStorage // The underlying user backend
 }
 
 // DefaultConfig returns the default TTL configuration for user backend.
@@ -53,10 +53,10 @@ func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedB
 func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
 	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
-	
+
 	// Apply method-specific TTL configuration
 	config.ApplyToBackend(cachedBackend)
-	
+
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,

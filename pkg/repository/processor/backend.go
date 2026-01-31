@@ -19,6 +19,13 @@ func NewBackend(dsn string) *BackendStorage {
 	}
 }
 
+// NewBackendStorage creates a BackendStorage from an existing gorm.DB instance
+func NewBackendStorage(db *gorm.DB) *BackendStorage {
+	return &BackendStorage{
+		Access: &repository.Access{DB: db},
+	}
+}
+
 // FindProviderClasses fetches all provider classes from the database.
 func (da *BackendStorage) FindProviderClasses() ([]ProviderClass, error) {
 	var classes []ProviderClass

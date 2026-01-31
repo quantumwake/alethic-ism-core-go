@@ -12,8 +12,8 @@ import (
 // Write operations automatically invalidate relevant cache entries to maintain consistency.
 // This implementation uses the generic cache package, making it easy to switch cache backends.
 type CachedBackendStorage struct {
-	*cache.CachedBackend               // Embedded generic caching functionality
-	base *BackendStorage               // The underlying processor backend
+	*cache.CachedBackend                 // Embedded generic caching functionality
+	base                 *BackendStorage // The underlying processor backend
 }
 
 // DefaultConfig returns the default TTL configuration for processor backend.
@@ -62,15 +62,16 @@ func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedB
 //   - A new CachedBackendStorage instance with configured TTLs
 //
 // Example:
-//   config := cache.DefaultProcessorConfig(30*time.Second)
-//   backend := NewCachedBackendWithConfig(dsn, cache, config)
+//
+//	config := cache.DefaultProcessorConfig(30*time.Second)
+//	backend := NewCachedBackendWithConfig(dsn, cache, config)
 func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
 	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
-	
+
 	// Apply method-specific TTL configuration
 	config.ApplyToBackend(cachedBackend)
-	
+
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,
@@ -89,8 +90,8 @@ func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodT
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindProcessorByID(processorID string) (*Processor, error) {
 	ctx := context.Background()
-	
-	return cache.CallCached(cb.CachedBackend, ctx, "FindProcessorByID", []interface{}{processorID}, 
+
+	return cache.CallCached(cb.CachedBackend, ctx, "FindProcessorByID", []interface{}{processorID},
 		func() (*Processor, error) {
 			return cb.base.FindProcessorByID(processorID)
 		})
@@ -108,7 +109,7 @@ func (cb *CachedBackendStorage) FindProcessorByID(processorID string) (*Processo
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindProcessorByProjectID(projectID string) ([]*Processor, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindProcessorByProjectID", []interface{}{projectID},
 		func() ([]*Processor, error) {
 			return cb.base.FindProcessorByProjectID(projectID)
@@ -128,7 +129,7 @@ func (cb *CachedBackendStorage) FindProcessorByProjectID(projectID string) ([]*P
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindProviders(userID, projectID *string) ([]*Provider, error) {
 	ctx := context.Background()
-	
+
 	// Convert pointers to values for consistent cache keys
 	var userVal, projectVal string
 	if userID != nil {
@@ -137,7 +138,7 @@ func (cb *CachedBackendStorage) FindProviders(userID, projectID *string) ([]*Pro
 	if projectID != nil {
 		projectVal = *projectID
 	}
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindProviders", []interface{}{userVal, projectVal},
 		func() ([]*Provider, error) {
 			return cb.base.FindProviders(userID, projectID)
@@ -158,7 +159,7 @@ func (cb *CachedBackendStorage) FindProviders(userID, projectID *string) ([]*Pro
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindProviderByClassUserAndProject(className Class, userID, projectID *string) ([]*Provider, error) {
 	ctx := context.Background()
-	
+
 	// Convert pointers to values for consistent cache keys
 	var userVal, projectVal string
 	if userID != nil {
@@ -167,8 +168,8 @@ func (cb *CachedBackendStorage) FindProviderByClassUserAndProject(className Clas
 	if projectID != nil {
 		projectVal = *projectID
 	}
-	
-	return cache.CallCached(cb.CachedBackend, ctx, "FindProviderByClassUserAndProject", 
+
+	return cache.CallCached(cb.CachedBackend, ctx, "FindProviderByClassUserAndProject",
 		[]interface{}{className, userVal, projectVal},
 		func() ([]*Provider, error) {
 			return cb.base.FindProviderByClassUserAndProject(className, userID, projectID)
@@ -187,7 +188,7 @@ func (cb *CachedBackendStorage) FindProviderByClassUserAndProject(className Clas
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindProviderByClass(className Class) ([]*Provider, error) {
 	ctx := context.Background()
-	
+
 	return cache.CallCached(cb.CachedBackend, ctx, "FindProviderByClass", []interface{}{className},
 		func() ([]*Provider, error) {
 			return cb.base.FindProviderByClass(className)
@@ -203,7 +204,7 @@ func (cb *CachedBackendStorage) FindProviderByClass(className Class) ([]*Provide
 //   - error: Database error if the operation fails
 func (cb *CachedBackendStorage) FindProviderClasses() ([]ProviderClass, error) {
 	ctx := context.Background()
-	
+
 	// Use the configured TTL for this method (set via MethodConfig)
 	return cache.CallCached(cb.CachedBackend, ctx, "FindProviderClasses", []interface{}{},
 		func() ([]ProviderClass, error) {
@@ -230,13 +231,13 @@ func (cb *CachedBackendStorage) CreateOrUpdate(processor *Processor) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Invalidate cache entries that would be affected by this change
 	_ = cb.InvalidateMethod(ctx, "FindProcessorByID", processor.ID)
 	_ = cb.InvalidateMethod(ctx, "FindProcessorByProjectID", processor.ProjectID)
-	
+
 	return nil
 }
 
@@ -259,9 +260,9 @@ func (cb *CachedBackendStorage) CreateOrUpdateProvider(provider *Provider) error
 	if err != nil {
 		return err
 	}
-	
+
 	ctx := context.Background()
-	
+
 	// Convert pointers to values for cache key generation
 	var userVal, projectVal string
 	if provider.UserID != nil {
@@ -270,12 +271,12 @@ func (cb *CachedBackendStorage) CreateOrUpdateProvider(provider *Provider) error
 	if provider.ProjectID != nil {
 		projectVal = *provider.ProjectID
 	}
-	
+
 	// Invalidate all cache entries that could be affected by this provider change
 	_ = cb.InvalidateMethod(ctx, "FindProviders", userVal, projectVal)
 	_ = cb.InvalidateMethod(ctx, "FindProviderByClass", provider.ClassName)
 	_ = cb.InvalidateMethod(ctx, "FindProviderByClassUserAndProject", provider.ClassName, userVal, projectVal)
-	
+
 	return nil
 }
 

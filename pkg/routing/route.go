@@ -28,6 +28,9 @@ type MessageEnvelop interface {
 	// MessageMap unmarshals the message data into a map[string]any.
 	// Useful for handling JSON messages. Returns an error if unmarshaling fails.
 	MessageMap() (map[string]any, error)
+
+	// Subject returns the subject/topic associated with the message.
+	Subject() string
 }
 
 // Route defines the interface for message routing implementations.

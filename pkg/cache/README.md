@@ -25,7 +25,7 @@ baseTTL := backendCache.GetDefaultTTL()
 processorBackend := processor.NewCachedBackend(dsn, backendCache, baseTTL)
 ```
 
-For complete backend setup examples, see [BACKEND_SETUP_EXAMPLE.md](BACKEND_SETUP_EXAMPLE.md).
+For complete backend setup examples, see [BACKEND_SETUP_EXAMPLE.md](../repository/backend/BACKEND_SETUP_EXAMPLE.md).
 
 ## TTL Configuration
 

@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 func StringFromEnvWithDefault(key string, defaultValue string) string {
@@ -20,5 +21,15 @@ func Int64FromEnvWithDefault(key string, defaultValue int64) int64 {
 			return intValue
 		}
 	}
+	return defaultValue
+}
+
+func DurationFromEnvWithDefault(key string, defaultValue time.Duration) time.Duration {
+	if value, ok := os.LookupEnv(key); ok {
+		if durationValue, err := time.ParseDuration(value); err == nil {
+			return durationValue
+		}
+	}
+
 	return defaultValue
 }

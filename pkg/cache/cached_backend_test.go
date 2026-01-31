@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"testing"
 	"time"
 )
@@ -52,15 +51,15 @@ func TestCachedBackend_BuildCacheKey(t *testing.T) {
 }
 
 func TestCachedBackend_GetCached(t *testing.T) {
+	ctx := t.Context()
 	backend := &mockBackend{}
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
 
 	cb := NewCachedBackend(backend, cache, 1*time.Second)
-	ctx := context.Background()
 
 	fetchCount := 0
-	fetchFunc := func() (interface{}, error) {
+	fetchFunc := func() (any, error) {
 		fetchCount++
 		return backend.GetData("test")
 	}
@@ -89,15 +88,16 @@ func TestCachedBackend_GetCached(t *testing.T) {
 }
 
 func TestCachedBackend_InvalidateCache(t *testing.T) {
+	ctx := t.Context()
+
 	backend := &mockBackend{}
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
 
 	cb := NewCachedBackend(backend, cache, 1*time.Second)
-	ctx := context.Background()
 
-	_ = cache.Set(ctx, "key1", "value1", 1*time.Second)
-	_ = cache.Set(ctx, "key2", "value2", 1*time.Second)
+	cache.Set(ctx, "key1", "value1", 1*time.Second)
+	cache.Set(ctx, "key2", "value2", 1*time.Second)
 
 	err := cb.InvalidateCache(ctx, "key1")
 	if err != nil {
@@ -126,14 +126,14 @@ func TestCachedBackend_InvalidateCache(t *testing.T) {
 }
 
 func TestCallCached(t *testing.T) {
+	ctx := t.Context()
 	backend := &mockBackend{}
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
 
 	cb := NewCachedBackend(backend, cache, 1*time.Second)
-	ctx := context.Background()
 
-	result1, err := CallCached(cb, ctx, "GetData", []interface{}{"id1"},
+	result1, err := CallCached(cb, ctx, "GetData", []any{"id1"},
 		func() (string, error) {
 			return backend.GetData("id1")
 		})
@@ -148,7 +148,7 @@ func TestCallCached(t *testing.T) {
 
 	initialCallCount := backend.callCount
 
-	result2, err := CallCached(cb, ctx, "GetData", []interface{}{"id1"},
+	result2, err := CallCached(cb, ctx, "GetData", []any{"id1"},
 		func() (string, error) {
 			return backend.GetData("id1")
 		})
@@ -167,14 +167,14 @@ func TestCallCached(t *testing.T) {
 }
 
 func TestCallCachedWithTTL(t *testing.T) {
+	ctx := t.Context()
 	backend := &mockBackend{}
 	cache := NewLocalCache(NewDefaultConfig())
 	defer cache.Close()
 
 	cb := NewCachedBackend(backend, cache, 1*time.Second)
-	ctx := context.Background()
 
-	result1, err := CallCachedWithTTL(cb, ctx, "GetList", []interface{}{}, 100*time.Millisecond,
+	result1, err := CallCachedWithTTL(cb, ctx, "GetList", []any{}, 100*time.Millisecond,
 		func() ([]string, error) {
 			return backend.GetList()
 		})
@@ -189,7 +189,7 @@ func TestCallCachedWithTTL(t *testing.T) {
 
 	initialCallCount := backend.callCount
 
-	_, err = CallCachedWithTTL(cb, ctx, "GetList", []interface{}{}, 100*time.Millisecond,
+	_, err = CallCachedWithTTL(cb, ctx, "GetList", []any{}, 100*time.Millisecond,
 		func() ([]string, error) {
 			return backend.GetList()
 		})
@@ -204,7 +204,7 @@ func TestCallCachedWithTTL(t *testing.T) {
 
 	time.Sleep(150 * time.Millisecond)
 
-	_, err = CallCachedWithTTL(cb, ctx, "GetList", []interface{}{}, 100*time.Millisecond,
+	_, err = CallCachedWithTTL(cb, ctx, "GetList", []any{}, 100*time.Millisecond,
 		func() ([]string, error) {
 			return backend.GetList()
 		})

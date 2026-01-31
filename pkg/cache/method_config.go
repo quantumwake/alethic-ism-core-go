@@ -4,12 +4,16 @@ import (
 	"time"
 )
 
+type CacheableMethodConfig interface {
+	SetMethodConfig(methodName string, config *MethodConfig)
+}
+
 // MethodTTLConfig defines TTL configuration for backend methods.
 // This allows centralized configuration of cache behavior without hardcoding in implementations.
 type MethodTTLConfig struct {
 	// Method name to TTL mapping
 	Methods map[string]time.Duration
-	
+
 	// Default TTL to use if method not found in map
 	DefaultTTL time.Duration
 }
@@ -37,7 +41,7 @@ func (c *MethodTTLConfig) GetMethodTTL(method string) time.Duration {
 
 // ApplyToBackend applies the TTL configuration to a CachedBackend.
 // This sets up MethodConfig for each configured method.
-func (c *MethodTTLConfig) ApplyToBackend(backend *CachedBackend) {
+func (c *MethodTTLConfig) ApplyToBackend(backend CacheableMethodConfig) {
 	for method, ttl := range c.Methods {
 		backend.SetMethodConfig(method, &MethodConfig{
 			TTL:       ttl,

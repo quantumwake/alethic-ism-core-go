@@ -12,8 +12,8 @@ import (
 // Routes are relatively static once configured, making them ideal for caching.
 // This implementation caches all read operations to reduce database load.
 type CachedBackendStorage struct {
-	*cache.CachedBackend // Embedded generic caching functionality
-	base *BackendStorage  // The underlying route backend
+	*cache.CachedBackend                 // Embedded generic caching functionality
+	base                 *BackendStorage // The underlying route backend
 }
 
 // DefaultConfig returns the default TTL configuration for route backend.
@@ -58,10 +58,10 @@ func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedB
 func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
 	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
-	
+
 	// Apply method-specific TTL configuration
 	config.ApplyToBackend(cachedBackend)
-	
+
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,

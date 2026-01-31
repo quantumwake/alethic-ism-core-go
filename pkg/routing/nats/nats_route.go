@@ -6,17 +6,31 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/cache"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/routing"
+	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"log"
 	"sync"
 	"time"
 )
 
+var (
+	channelTTL = utils.DurationFromEnvWithDefault("SUBJECT_CHANNEL_TTL_DURATION", 10*time.Second)
+)
+
+type RouteOptions struct {
+	EnableChannels bool
+}
+
+// RouteOption defines a function type for configuring Route
+type RouteOption func(*Route)
+
 type Route struct {
 	routing.Route
 
 	//NatConfig
-	Config *NatConfig
+	Config  *NatConfig
+	Options *RouteOptions
 
 	nc   *nats.Conn
 	js   nats.JetStreamContext
@@ -25,20 +39,27 @@ type Route struct {
 	once sync.Once
 
 	Callback func(ctx context.Context, msg routing.MessageEnvelop)
+	Channels cache.Cache
 }
 
+// MessageEnvelop encapsulates a NATS message for processing.
 type MessageEnvelop struct {
 	Msg *nats.Msg // The NATS message associated with this envelope
 }
 
 // Ack acknowledges the message, indicating successful processing.
-func (msg *MessageEnvelop) Ack(ctx context.Context) error {
+func (msg *MessageEnvelop) Ack(_ context.Context) error {
 	return msg.Msg.Ack() // TODO need to pass in the opts
 }
 
 // NakWithDelay acknowledges the message with a negative acknowledgment, allowing it to be redelivered later.
-func (msg *MessageEnvelop) NakWithDelay(ctx context.Context, delay time.Duration) error {
+func (msg *MessageEnvelop) NakWithDelay(_ context.Context, delay time.Duration) error {
 	return msg.Msg.NakWithDelay(delay) // Nack with a delay
+}
+
+// Subject returns the subject/topic associated with the message.
+func (msg *MessageEnvelop) Subject() string {
+	return msg.Msg.Subject
 }
 
 // MessageRaw return raw message []byte.
@@ -68,12 +89,38 @@ func (msg *MessageEnvelop) MessageMap() (map[string]any, error) {
 	return mapping, nil
 }
 
-// NewRoute initializes and returns a new NATSRoute instance.
-func NewRoute(config *NatConfig, callback func(ctx context.Context, msg routing.MessageEnvelop)) *Route {
-	return &Route{Config: config, Callback: callback}
+// WithEnableChannels enables channel-based message routing
+func WithEnableChannels(enable bool) RouteOption {
+	return func(r *Route) {
+		if r.Options == nil {
+			r.Options = &RouteOptions{}
+		}
+		r.Options.EnableChannels = enable
+		if enable {
+			r.Channels = cache.NewLocalCacheWithOptions(
+				cache.WithOptionTTL(5*time.Minute),
+				cache.WithOptionCleanupInterval(10*time.Minute),
+			)
+		}
+	}
 }
 
-func NewRouteUsingSelector(ctx context.Context, selector string) (*Route, error) {
+// NewRoute initializes and returns a new Route instance with optional configuration
+func NewRoute(config *NatConfig, callback func(ctx context.Context, msg routing.MessageEnvelop), opts ...RouteOption) *Route {
+	route := &Route{
+		Config:   config,
+		Callback: callback,
+	}
+
+	// Apply all options
+	for _, opt := range opts {
+		opt(route)
+	}
+
+	return route
+}
+
+func NewRouteUsingSelector(ctx context.Context, selector string, opts ...RouteOption) (*Route, error) {
 	config, err := LoadConfigFromEnv()
 	if err != nil {
 		return nil, fmt.Errorf("failed subscribe to selector: %s when loading config: %w", selector, err)
@@ -85,15 +132,15 @@ func NewRouteUsingSelector(ctx context.Context, selector string) (*Route, error)
 	}
 
 	// otherwise subscribe to the route with the callback for when messages are received
-	natsRoute := NewRoute(routeConfig, nil)
+	natsRoute := NewRoute(routeConfig, nil, opts...)
 	if err = natsRoute.Connect(ctx); err != nil {
 		log.Fatalf("error connecting to monitor route: %v", err)
 	}
 	return natsRoute, nil
 }
 
-func NewRouteSubscriberUsingSelector(ctx context.Context, selector string, callback func(ctx context.Context, msg routing.MessageEnvelop)) (*Route, error) {
-	natsRoute, err := NewRouteUsingSelector(ctx, selector)
+func NewRouteSubscriberUsingSelector(ctx context.Context, selector string, callback func(ctx context.Context, msg routing.MessageEnvelop), opts ...RouteOption) (*Route, error) {
+	natsRoute, err := NewRouteUsingSelector(ctx, selector, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed subscribe to selector: %s; err: %w", selector, err)
 	}
@@ -187,6 +234,35 @@ func (r *Route) Publish(ctx context.Context, msg any) error {
 		}
 	} else {
 		if err := r.nc.Publish(r.Config.Subject, data); err != nil {
+			return fmt.Errorf("failed to publish message: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *Route) PublishWithSuffix(ctx context.Context, suffix string, msg any) error {
+	var err error
+	var data []byte
+	data, err = toBytes(msg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	if err = r.Connect(ctx); err != nil {
+		return err
+	}
+
+	// construct the subject with the suffix
+	subject := fmt.Sprintf("%s.%s", r.Config.Subject, suffix)
+
+	if r.Config.JetStreamEnabled() {
+		_, err = r.js.Publish(subject, data)
+		if err != nil {
+			return fmt.Errorf("failed to publish message to JetStream: %w", err)
+		}
+	} else {
+		if err = r.nc.Publish(subject, data); err != nil {
 			return fmt.Errorf("failed to publish message: %w", err)
 		}
 	}
@@ -299,13 +375,43 @@ func (r *Route) subscribePull(ctx context.Context) error {
 			for _, msg := range msgs {
 				if r.Callback != nil {
 					envelop := &MessageEnvelop{Msg: msg}
-					r.Callback(ctx, envelop)
+					if r.Options != nil && r.Options.EnableChannels {
+						r.publishWithChannel(ctx, envelop)
+					} else {
+						r.Callback(ctx, envelop)
+					}
 				}
 			}
 		}
 	}()
 
 	return nil
+}
+
+func (r *Route) publishWithChannel(ctx context.Context, msg routing.MessageEnvelop) (chan routing.MessageEnvelop, error) {
+	subject := msg.Subject()
+
+	//
+	ch, err := r.Channels.GetCreateOrUpdate(ctx, subject, func(exists bool, value any) (any, error) {
+		// if the channel already exists, then just set it to itself
+		if exists {
+			return value, nil
+		}
+
+		// create channel since it does not exist
+		value = make(chan routing.MessageEnvelop, 1)
+		return value, nil
+	}, channelTTL)
+
+	if err != nil {
+		// TODO critical error here
+		return nil, fmt.Errorf("failed to get or create channel for subject: %s; err: %v", subject, err)
+	}
+
+	//
+	msgChan := ch.(chan routing.MessageEnvelop)
+	msgChan <- msg
+	return msgChan, nil
 }
 
 // Unsubscribe unsubscribes from the subject.

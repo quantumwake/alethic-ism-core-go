@@ -11,8 +11,8 @@ import (
 // Projects are accessed frequently but change relatively infrequently,
 // making them good candidates for caching with moderate TTLs.
 type CachedBackendStorage struct {
-	*cache.CachedBackend // Embedded generic caching functionality
-	base *BackendStorage  // The underlying project backend
+	*cache.CachedBackend                 // Embedded generic caching functionality
+	base                 *BackendStorage // The underlying project backend
 }
 
 // DefaultConfig returns the default TTL configuration for project backend.
@@ -54,10 +54,10 @@ func NewCachedBackend(dsn string, c cache.Cache, baseTTL time.Duration) *CachedB
 func NewCachedBackendWithConfig(dsn string, c cache.Cache, config *cache.MethodTTLConfig) *CachedBackendStorage {
 	base := NewBackend(dsn)
 	cachedBackend := cache.NewCachedBackend(base, c, config.DefaultTTL)
-	
+
 	// Apply method-specific TTL configuration
 	config.ApplyToBackend(cachedBackend)
-	
+
 	return &CachedBackendStorage{
 		CachedBackend: cachedBackend,
 		base:          base,
