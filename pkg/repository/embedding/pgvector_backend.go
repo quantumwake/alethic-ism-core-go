@@ -209,8 +209,10 @@ func (s *PgVectorStorage) Search(emb []float32, filter SearchFilter, opts Search
 		ORDER BY embedding::vector(%d) <=> ?
 		LIMIT ?`, dims, whereClause, dims)
 
-	// Append the two vector args for SELECT similarity and ORDER BY, plus limit
-	args = append(args, vec, vec, limit)
+	// Prepend SELECT similarity vec before WHERE args, then append ORDER BY vec + LIMIT
+	// The ? placeholders are ordered: SELECT(vec), WHERE(...), ORDER BY(vec), LIMIT
+	args = append([]interface{}{vec}, args...)
+	args = append(args, vec, limit)
 
 	type searchRow struct {
 		documentRow

@@ -19,10 +19,11 @@ const (
 type ScopeType string
 
 const (
-	ScopeState     = ScopeType("state")
-	ScopeRoute     = ScopeType("route")
-	ScopeProcessor = ScopeType("processor")
-	ScopeDocument  = ScopeType("document")
+	ScopeState        = ScopeType("state")
+	ScopeRoute        = ScopeType("route")
+	ScopeProcessor    = ScopeType("processor")
+	ScopeDocument     = ScopeType("document")
+	ScopeConversation = ScopeType("conversation")
 )
 
 // Document represents a text document with its embedding vector.
