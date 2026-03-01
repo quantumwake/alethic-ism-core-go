@@ -13,6 +13,7 @@ const (
 	ContentText     = ContentType("text")
 	ContentMarkdown = ContentType("markdown")
 	ContentCode     = ContentType("code")
+	ContentJSON     = ContentType("json")
 )
 
 // ScopeType represents the type of scope a document is linked to.
@@ -24,6 +25,7 @@ const (
 	ScopeProcessor    = ScopeType("processor")
 	ScopeDocument     = ScopeType("document")
 	ScopeConversation = ScopeType("conversation")
+	ScopeToolResult   = ScopeType("tool_result")
 )
 
 // Document represents a text document with its embedding vector.
