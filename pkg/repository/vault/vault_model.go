@@ -3,6 +3,8 @@ package vault
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/quantumwake/alethic-ism-core-go/pkg/data"
 )
 
 // VaultType is the type of vault to use for storing secrets and configuration.
@@ -27,11 +29,14 @@ type Vault struct {
 	// Name of the vault (e.g. "my-vault")
 	Name string `gorm:"column:name; type:varchar(255); not null" json:"name"`
 
+	// Owner of the vault (user ID)
+	OwnerID string `gorm:"column:owner_id; type:varchar(36); not null" json:"owner_id"`
+
 	// Type of vault to use for storage (e.g. local, aws secret manager, hashicorp vault, custom, etc.)
-	Type VaultType `gorm:"column:type; type:config_type; not null" json:"type"`
+	Type VaultType `gorm:"column:type; type:varchar(50); not null" json:"type"`
 
 	// JSON object containing metadata about the vault (e.g. {"region": "us-west-2"})
-	Metadata map[string]any `json:"metadata"`
+	Metadata data.JSON `gorm:"column:metadata;type:jsonb;null" json:"metadata"`
 
 	// ISO timestamp (e.g. "2021-01-01T00:00:00Z")
 	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`

@@ -9,8 +9,15 @@ import (
 
 type Storage interface {
 	FindVault(id string) (*Vault, error)
+	FindVaultsByOwner(ownerID string) ([]*Vault, error)
+	InsertOrUpdateVault(vault *Vault) error
+	UpdateVault(vault *Vault) error
+	DeleteVault(id string) error
+
 	FindConfig(id string) (*ConfigMap, error)
+	FindConfigsByVaultID(vaultID string) ([]*ConfigMap, error)
 	InsertOrUpdateConfig(configMap *ConfigMap) error
+	DeleteConfig(id string) error
 }
 
 // DatabaseStorage is a database backend storage
@@ -50,12 +57,43 @@ func (va *DatabaseStorage) InsertOrUpdateVault(vault *Vault) error {
 		},
 		DoUpdates: clause.Assignments(map[string]any{
 			"name":       vault.Name,
+			"owner_id":   vault.OwnerID,
 			"metadata":   vault.Metadata,
 			"updated_at": gorm.Expr("NOW()"),
 		}),
 	}).Create(vault)
 
 	return db.Error
+}
+
+// FindVaultsByOwner finds all vaults owned by a given user.
+func (va *DatabaseStorage) FindVaultsByOwner(ownerID string) ([]*Vault, error) {
+	var vaults []*Vault
+	result := va.DB.Where("owner_id = ?", ownerID).Find(&vaults)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return vaults, nil
+}
+
+// FindConfigsByVaultID finds all config maps belonging to a vault.
+func (va *DatabaseStorage) FindConfigsByVaultID(vaultID string) ([]*ConfigMap, error) {
+	var configs []*ConfigMap
+	result := va.DB.Where("vault_id = ?", vaultID).Find(&configs)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return configs, nil
+}
+
+// UpdateVault updates an existing vault's mutable fields.
+func (va *DatabaseStorage) UpdateVault(vault *Vault) error {
+	result := va.DB.Model(&Vault{}).Where("id = ?", vault.ID).Updates(map[string]any{
+		"name":       vault.Name,
+		"metadata":   vault.Metadata,
+		"updated_at": gorm.Expr("NOW()"),
+	})
+	return result.Error
 }
 
 // FindConfig finds a config map in the database by its ID.
