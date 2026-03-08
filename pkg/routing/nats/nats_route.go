@@ -135,7 +135,7 @@ func NewRouteUsingSelector(ctx context.Context, selector string, opts ...RouteOp
 	// otherwise subscribe to the route with the callback for when messages are received
 	natsRoute := NewRoute(routeConfig, nil, opts...)
 	if err = natsRoute.Connect(ctx); err != nil {
-		log.Fatalf("error connecting to monitor route: %v", err)
+		log.Fatalf("error connecting to route %s: %v", selector, err)
 	}
 	return natsRoute, nil
 }
@@ -179,13 +179,22 @@ func (r *Route) Connect(ctx context.Context) error {
 			return fmt.Errorf("failed to initialize JetStream: %w", err)
 		}
 
-		//r.js.PullSubscribe()
 		if _, err := r.js.StreamInfo(*r.Config.Name); errors.Is(err, nats.ErrStreamNotFound) {
-			_, err := r.js.AddStream(&nats.StreamConfig{
-				Name:     *r.Config.Name,
-				Subjects: []string{r.Config.Subject},
-			})
-			if err != nil {
+			var streamCfg nats.StreamConfig
+			if r.Config.Mirror != nil {
+				// Create a mirror stream that replicates from the source stream.
+				streamCfg = nats.StreamConfig{
+					Name:   *r.Config.Name,
+					Mirror: &nats.StreamSource{Name: *r.Config.Mirror},
+				}
+				log.Printf("Creating mirror stream %s from source %s", *r.Config.Name, *r.Config.Mirror)
+			} else {
+				streamCfg = nats.StreamConfig{
+					Name:     *r.Config.Name,
+					Subjects: []string{r.Config.Subject},
+				}
+			}
+			if _, err := r.js.AddStream(&streamCfg); err != nil {
 				return fmt.Errorf("failed to add stream: %w", err)
 			}
 		} else if err != nil {
@@ -334,12 +343,18 @@ func (r *Route) subscribePull(ctx context.Context) error {
 
 	opts := buildJetStreamOptions(r.Config)
 
+	// Bind to the specific stream so NATS doesn't resolve to a different
+	// stream that happens to match the same subject (e.g. a workqueue stream).
+	if r.Config.Name != nil {
+		opts = append(opts, nats.BindStream(*r.Config.Name))
+	}
+
 	// For pull subscribers, the queue name is used as the durable consumer name
 	// If not set, creates an ephemeral consumer
 	durableName := ""
 	if r.Config.Queue != nil {
 		durableName = *r.Config.Queue
-		log.Printf("Creating durable pull subscriber: %s", durableName)
+		log.Printf("Creating durable pull subscriber: %s on stream: %v", durableName, r.Config.Name)
 	} else {
 		log.Printf("Creating ephemeral pull subscriber (no durable name)")
 	}

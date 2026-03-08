@@ -19,6 +19,7 @@ type NatConfig struct {
 	AckWait       *int    `yaml:"ack_wait,omitempty"`        // Optional: JetStream ack wait in seconds
 	Mode          *string `yaml:"mode,omitempty"`            // Optional: "push" (default), "pull", "request-reply"
 	BatchSize     *int    `yaml:"batch_size,omitempty"`      // Optional: Batch size for pull mode (default 10)
+	Mirror        *string `yaml:"mirror,omitempty"`          // Optional: source stream name to mirror
 }
 
 func (r *NatConfig) String() string {

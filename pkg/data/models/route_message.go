@@ -13,8 +13,8 @@ const (
 type Data map[string]any
 
 type RouteMessage struct {
-	Type    MessageType `json:"type"`
-	RouteID string      `json:"route_id"`
-	//QueryState []map[string]interface{} `json:"query_state"`
-	QueryState []Data `json:"query_state"`
+	Type        MessageType `json:"type"`
+	RouteID     string      `json:"route_id"`
+	ProcessorID string      `json:"processor_id,omitempty"`
+	QueryState  []Data      `json:"query_state"`
 }

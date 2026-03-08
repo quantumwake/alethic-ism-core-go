@@ -11,6 +11,7 @@ const (
 	Code            Class = "CodeProcessing"
 	NLP             Class = "NaturalLanguageProcessing"
 	Data            Class = "DataProcessing"
+	DataConnector   Class = "DataConnector"   // External data sources/sinks (S3, APIs, etc.)
 	Text            Class = "TextProcessing"
 	Image           Class = "ImageProcessing"
 	Video           Class = "VideoProcessing"
