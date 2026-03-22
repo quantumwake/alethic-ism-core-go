@@ -238,10 +238,12 @@ func (r *Route) Publish(ctx context.Context, msg any) error {
 	}
 
 	if r.Config.JetStreamEnabled() {
-		_, err := r.js.Publish(r.Config.Subject, data)
+		ack, err := r.js.Publish(r.Config.Subject, data)
 		if err != nil {
 			return fmt.Errorf("failed to publish message to JetStream: %w", err)
 		}
+		log.Printf("published to JetStream: stream=%s seq=%d subject=%s size=%d",
+			ack.Stream, ack.Sequence, r.Config.Subject, len(data))
 	} else {
 		if err := r.nc.Publish(r.Config.Subject, data); err != nil {
 			return fmt.Errorf("failed to publish message: %w", err)

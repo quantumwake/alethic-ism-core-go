@@ -28,21 +28,18 @@ func New(stateSync, stateRouter, monitor routing.Route) *Emitter {
 }
 
 // Publish sends a single batch of data as a RouteMessage to state sync.
-func (e *Emitter) Publish(ctx context.Context, routeID string, data []models.Data) (err error) {
-	defer func() {
-		if flushErr := e.stateSync.Flush(); flushErr != nil && err == nil {
-			err = fmt.Errorf("flush state sync: %w", flushErr)
-		}
-	}()
-
+func (e *Emitter) Publish(ctx context.Context, routeID string, data []models.Data) error {
 	msg := models.RouteMessage{
 		Type:       models.QueryStateRoute,
 		RouteID:    routeID,
 		QueryState: data,
 	}
 
-	if err = e.stateSync.Publish(ctx, msg); err != nil {
+	if err := e.stateSync.Publish(ctx, msg); err != nil {
 		return fmt.Errorf("publish to state sync: %w", err)
+	}
+	if err := e.stateSync.Flush(); err != nil {
+		return fmt.Errorf("flush state sync: %w", err)
 	}
 	return nil
 }
@@ -52,6 +49,9 @@ func (e *Emitter) PublishBatch(ctx context.Context, routeID string, data []model
 	if batchSize <= 0 {
 		batchSize = 100
 	}
+
+	totalBatches := (len(data) + batchSize - 1) / batchSize
+	log.Printf("publishing %d records in %d batches to route %s", len(data), totalBatches, routeID)
 
 	for i := 0; i < len(data); i += batchSize {
 		end := i + batchSize
