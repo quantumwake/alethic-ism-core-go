@@ -226,6 +226,71 @@ func (da *BackendStorage) DeleteStateColumn(id int64) bool {
 	return result.RowsAffected > 0
 }
 
+// ChunkRow represents a single (column_name, data_index, value) tuple from the
+// export query. Used internally by FetchDataChunk.
+type ChunkRow struct {
+	Name      string  `gorm:"column:name"`
+	DataIndex int64   `gorm:"column:data_index"`
+	DataValue *string `gorm:"column:data_value"`
+}
+
+// FetchDataChunk retrieves state data for the given index range [offset, offset+limit)
+// and returns it as a slice of row maps, pivoted from the columnar storage.
+// This mirrors alethic-ism-api's fetch_state_data_chunk_for_export.
+func (da *BackendStorage) FetchDataChunk(stateID string, offset, limit int64) ([]map[string]any, error) {
+	var rows []ChunkRow
+	err := da.DB.Raw(`
+		SELECT sc.name, sd.data_index,
+		       CASE WHEN sc.data_type = 'json'
+		            THEN sd.data_json_value::text
+		            ELSE sd.data_value
+		       END AS data_value
+		FROM state_column sc
+		LEFT JOIN state_column_data sd ON sc.id = sd.column_id
+		WHERE sc.state_id = ?
+		  AND sd.data_index >= ?
+		  AND sd.data_index < ?
+		ORDER BY sd.data_index, sc.name
+	`, stateID, offset, offset+limit).Scan(&rows).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("fetch data chunk: %w", err)
+	}
+
+	// Pivot: group by data_index into records.
+	recordMap := make(map[int64]map[string]any)
+	var indices []int64
+
+	for _, r := range rows {
+		rec, exists := recordMap[r.DataIndex]
+		if !exists {
+			rec = make(map[string]any)
+			recordMap[r.DataIndex] = rec
+			indices = append(indices, r.DataIndex)
+		}
+		if r.DataValue != nil {
+			rec[r.Name] = *r.DataValue
+		}
+	}
+
+	records := make([]map[string]any, 0, len(indices))
+	for _, idx := range indices {
+		records = append(records, recordMap[idx])
+	}
+
+	return records, nil
+}
+
+// ListStates returns all state IDs with their name and row count.
+func (da *BackendStorage) ListStates() ([]State, error) {
+	var states []State
+	result := da.DB.Find(&states)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return states, nil
+}
+
 //// UnmarshalJSON is a custom unmarshaler for the Usage struct to handle the transaction time field.
 //func (u *BackendStorage) UnmarshalJSON(data []byte) error {
 //
