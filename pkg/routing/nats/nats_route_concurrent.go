@@ -32,11 +32,12 @@ import (
 //   - Messages are only pulled when a worker slot is available
 //   - ACK/NAK is the callback's responsibility
 type ConcurrentRoute struct {
-	route    *Route
-	sub      *natslib.Subscription
-	sem      chan struct{}    // semaphore: capacity = max workers
-	wg       sync.WaitGroup  // tracks in-flight goroutines
-	callback func(ctx context.Context, msg routing.MessageEnvelop)
+	route     *Route
+	sub       *natslib.Subscription
+	sem       chan struct{}    // semaphore: capacity = max workers
+	wg        sync.WaitGroup  // tracks in-flight goroutines
+	batchSize int             // messages to fetch per pull (from config or default)
+	callback  func(ctx context.Context, msg routing.MessageEnvelop)
 }
 
 // NewConcurrentRouteSubscriber creates a concurrent route subscriber.
@@ -65,10 +66,16 @@ func NewConcurrentRouteSubscriber(
 		return nil, fmt.Errorf("concurrent route requires JetStream (set name + queue in config)")
 	}
 
+	batchSize := 10 // default
+	if route.Config.BatchSize != nil && *route.Config.BatchSize > 0 {
+		batchSize = *route.Config.BatchSize
+	}
+
 	cr := &ConcurrentRoute{
-		route:    route,
-		sem:      make(chan struct{}, maxWorkers),
-		callback: callback,
+		route:     route,
+		sem:       make(chan struct{}, maxWorkers),
+		batchSize: batchSize,
+		callback:  callback,
 	}
 
 	// Resolve consumer configuration from the route config.
@@ -103,8 +110,8 @@ func NewConcurrentRouteSubscriber(
 	// Start the concurrent consume loop.
 	cr.startConsumeLoop(ctx)
 
-	log.Printf("[concurrent] started: selector=%s, stream=%s, consumer=%s, workers=%d",
-		selector, streamName, durableName, maxWorkers)
+	log.Printf("[concurrent] started: selector=%s, stream=%s, consumer=%s, workers=%d, batch=%d",
+		selector, streamName, durableName, maxWorkers, batchSize)
 
 	return cr, nil
 }
@@ -149,14 +156,15 @@ func (cr *ConcurrentRoute) ensureConsumer(stream, consumer string) error {
 //
 // Flow per iteration:
 //
-//	sem <- struct{}{}         // acquire slot (blocks at capacity)
-//	msgs := sub.Fetch(1)     // pull one message
-//	go callback(msg)          // process in goroutine
-//	  defer <-sem             // release slot when done
+//	msgs := sub.Fetch(batchSize)   // pull up to batchSize messages
+//	for each msg:
+//	  sem <- struct{}{}            // acquire slot (blocks at capacity)
+//	  go callback(msg)             // process in goroutine
+//	    defer <-sem                // release slot when done
 func (cr *ConcurrentRoute) startConsumeLoop(ctx context.Context) {
 	go func() {
 		for {
-			// Check for shutdown before acquiring a slot.
+			// Check for shutdown.
 			select {
 			case <-ctx.Done():
 				log.Printf("[concurrent] consume loop stopped: %v", ctx.Err())
@@ -164,43 +172,46 @@ func (cr *ConcurrentRoute) startConsumeLoop(ctx context.Context) {
 			default:
 			}
 
-			// Acquire semaphore slot. Blocks when all workers are busy,
-			// which naturally throttles fetch rate to processing rate.
-			cr.sem <- struct{}{}
-
-			// Fetch one message. MaxWait prevents busy-spinning when idle.
-			msgs, err := cr.sub.Fetch(1, natslib.MaxWait(5*time.Second))
+			// Fetch a batch of messages. MaxWait prevents busy-spinning when idle.
+			msgs, err := cr.sub.Fetch(cr.batchSize, natslib.MaxWait(5*time.Second))
 			if err != nil {
-				if err != natslib.ErrTimeout {
-					log.Printf("[concurrent] fetch error: %v", err)
+				if err == natslib.ErrTimeout {
+					continue
 				}
-				<-cr.sem // release slot, no message to process
+				// Fatal subscription errors — subscription is dead, stop the loop.
+				if !cr.sub.IsValid() {
+					log.Printf("[concurrent] subscription closed, stopping consume loop")
+					return
+				}
+				// Transient error — back off to avoid tight-loop spam.
+				log.Printf("[concurrent] fetch error: %v", err)
+				time.Sleep(time.Second)
 				continue
 			}
 
-			if len(msgs) == 0 {
-				<-cr.sem // release slot, no message to process
-				continue
+			// Dispatch each message to a worker goroutine.
+			for _, msg := range msgs {
+				// Acquire semaphore slot. Blocks when all workers are busy,
+				// which naturally throttles dispatch to processing rate.
+				cr.sem <- struct{}{}
+
+				// Log redeliveries for debugging ACK issues.
+				if meta, metaErr := msg.Metadata(); metaErr == nil && meta.NumDelivered > 1 {
+					log.Printf("[concurrent] redelivery #%d: subject=%s, stream_seq=%d",
+						meta.NumDelivered, msg.Subject, meta.Sequence.Stream)
+				}
+
+				// Spawn goroutine to process the message.
+				// The goroutine owns the semaphore slot and releases it when done.
+				cr.wg.Add(1)
+				go func(m *natslib.Msg) {
+					defer cr.wg.Done()
+					defer func() { <-cr.sem }()
+
+					envelop := &MessageEnvelop{Msg: m}
+					cr.callback(ctx, envelop)
+				}(msg)
 			}
-
-			msg := msgs[0]
-
-			// Log redeliveries for debugging ACK issues.
-			if meta, metaErr := msg.Metadata(); metaErr == nil && meta.NumDelivered > 1 {
-				log.Printf("[concurrent] redelivery #%d: subject=%s, stream_seq=%d",
-					meta.NumDelivered, msg.Subject, meta.Sequence.Stream)
-			}
-
-			// Spawn goroutine to process the message.
-			// The goroutine owns the semaphore slot and releases it when done.
-			cr.wg.Add(1)
-			go func(m *natslib.Msg) {
-				defer cr.wg.Done()
-				defer func() { <-cr.sem }()
-
-				envelop := &MessageEnvelop{Msg: m}
-				cr.callback(ctx, envelop)
-			}(msg)
 		}
 	}()
 }
