@@ -291,6 +291,17 @@ func (da *BackendStorage) ListStates() ([]State, error) {
 	return states, nil
 }
 
+// FindStatesByProjectID returns all states belonging to a project (basic rows;
+// no columns/data). Mirrors processor.FindProcessorByProjectID.
+func (da *BackendStorage) FindStatesByProjectID(projectID string) ([]State, error) {
+	var states []State
+	result := da.DB.Where("project_id = ?", projectID).Find(&states)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return states, nil
+}
+
 //// UnmarshalJSON is a custom unmarshaler for the Usage struct to handle the transaction time field.
 //func (u *BackendStorage) UnmarshalJSON(data []byte) error {
 //

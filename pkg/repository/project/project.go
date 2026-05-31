@@ -17,12 +17,12 @@ func NewBackend(dsn string) *BackendStorage {
 
 // FindByID methods for finding user profile data by id.
 func (da *BackendStorage) FindByID(id string) (*Project, error) {
-	var project *Project
-	result := da.DB.Where("project_id = ?", id).First(project)
+	var project Project
+	result := da.DB.Where("project_id = ?", id).First(&project)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return project, nil
+	return &project, nil
 }
 
 // FindAllByUserID finds all projects for a given user ID.
