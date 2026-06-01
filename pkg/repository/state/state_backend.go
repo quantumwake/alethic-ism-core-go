@@ -281,6 +281,67 @@ func (da *BackendStorage) FetchDataChunk(stateID string, offset, limit int64) ([
 	return records, nil
 }
 
+// StreamData streams every row of a state to fn in data_index order, pivoting
+// the columnar (EAV) storage on the fly. Unlike FetchDataChunk it issues a
+// single ordered cursor query and never materializes the whole state in memory,
+// and it is correct even when data_index has gaps (it does not assume a dense
+// 0..count range, which the offset-paged caller did). fn is invoked once per
+// logical row; returning an error from fn aborts the stream.
+func (da *BackendStorage) StreamData(stateID string, fn func(record map[string]any) error) error {
+	rows, err := da.DB.Raw(`
+		SELECT sc.name, sd.data_index,
+		       CASE WHEN sc.data_type = 'json'
+		            THEN sd.data_json_value::text
+		            ELSE sd.data_value
+		       END AS data_value
+		FROM state_column sc
+		LEFT JOIN state_column_data sd ON sc.id = sd.column_id
+		WHERE sc.state_id = ?
+		  AND sd.data_index IS NOT NULL
+		ORDER BY sd.data_index, sc.name
+	`, stateID).Rows()
+	if err != nil {
+		return fmt.Errorf("stream data chunk: %w", err)
+	}
+	defer rows.Close()
+
+	var (
+		curRec   map[string]any
+		curIndex int64
+		have     bool
+	)
+	for rows.Next() {
+		var r ChunkRow
+		if err := da.DB.ScanRows(rows, &r); err != nil {
+			return fmt.Errorf("scan stream row: %w", err)
+		}
+		// Rows are ordered by data_index, so a change of index closes the
+		// current record and starts the next one.
+		if !have || r.DataIndex != curIndex {
+			if have {
+				if err := fn(curRec); err != nil {
+					return err
+				}
+			}
+			curRec = make(map[string]any)
+			curIndex = r.DataIndex
+			have = true
+		}
+		if r.DataValue != nil {
+			curRec[r.Name] = *r.DataValue
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("stream rows: %w", err)
+	}
+	if have {
+		if err := fn(curRec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ListStates returns all state IDs with their name and row count.
 func (da *BackendStorage) ListStates() ([]State, error) {
 	var states []State
