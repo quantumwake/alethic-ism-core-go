@@ -194,19 +194,53 @@ func (tb *BackendStorage) finish(id string, status Status, result, errMsg string
 // Pending so another worker can retry them. Returns the number reclaimed; call
 // on startup and periodically.
 func (tb *BackendStorage) ReclaimStale() (int64, error) {
+	return tb.ReclaimStaleWithLimit(0)
+}
+
+// ReclaimStaleWithLimit is ReclaimStale with a retry cap. A stale running task
+// whose attempts have reached maxAttempts is dead-lettered (marked Failed)
+// instead of being returned to Pending, so a task that crashes its worker every
+// time — e.g. an export that OOMKills the pod — cannot re-claim itself forever
+// and take the service down in a crash loop. maxAttempts <= 0 disables the cap
+// (every stale task is requeued; original behavior). Returns the number of rows
+// affected (requeued + failed).
+func (tb *BackendStorage) ReclaimStaleWithLimit(maxAttempts int) (int64, error) {
 	now := time.Now().UTC()
-	res := tb.DB.Model(&Task{}).
-		Where("status = ? AND lease_expires_at IS NOT NULL AND lease_expires_at < ?", StatusRunning, now).
-		Updates(map[string]any{
-			"status":           StatusPending,
-			"lease_owner":      "",
-			"lease_expires_at": nil,
-			"updated_at":       now,
-		})
+
+	var failed int64
+	if maxAttempts > 0 {
+		res := tb.DB.Model(&Task{}).
+			Where("status = ? AND lease_expires_at IS NOT NULL AND lease_expires_at < ? AND attempts >= ?",
+				StatusRunning, now, maxAttempts).
+			Updates(map[string]any{
+				"status":           StatusFailed,
+				"error":            fmt.Sprintf("dead-lettered after %d attempts (worker kept dying mid-task)", maxAttempts),
+				"finished_at":      now,
+				"lease_owner":      "",
+				"lease_expires_at": nil,
+				"updated_at":       now,
+			})
+		if res.Error != nil {
+			return 0, fmt.Errorf("dead-letter stale tasks: %w", res.Error)
+		}
+		failed = res.RowsAffected
+	}
+
+	q := tb.DB.Model(&Task{}).
+		Where("status = ? AND lease_expires_at IS NOT NULL AND lease_expires_at < ?", StatusRunning, now)
+	if maxAttempts > 0 {
+		q = q.Where("attempts < ?", maxAttempts)
+	}
+	res := q.Updates(map[string]any{
+		"status":           StatusPending,
+		"lease_owner":      "",
+		"lease_expires_at": nil,
+		"updated_at":       now,
+	})
 	if res.Error != nil {
 		return 0, fmt.Errorf("reclaim stale tasks: %w", res.Error)
 	}
-	return res.RowsAffected, nil
+	return failed + res.RowsAffected, nil
 }
 
 // Cancel marks a non-terminal task Canceled. A running worker observes this via
