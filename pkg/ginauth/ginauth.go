@@ -81,10 +81,16 @@ func CORSMiddleware() gin.HandlerFunc {
 		origin := c.GetHeader("Origin")
 		if origin != "" {
 			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+			c.Header("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, Range, If-Match, If-None-Match")
+			// Expose range/byte headers so a cross-origin browser reader (e.g.
+			// DuckDB-WASM doing HTTP range reads of parquet) can size and seek the
+			// object. Object stores like DO Spaces cannot expose these via their
+			// own CORS, so services that proxy byte ranges must do it here.
+			c.Header("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges, ETag, Content-Type")
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Access-Control-Max-Age", "600")
+			c.Header("Vary", "Origin")
 		}
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
