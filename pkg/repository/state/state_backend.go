@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"sort"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/repository"
 	"github.com/quantumwake/alethic-ism-core-go/pkg/utils"
 	"gorm.io/gorm"
@@ -281,63 +282,97 @@ func (da *BackendStorage) FetchDataChunk(stateID string, offset, limit int64) ([
 	return records, nil
 }
 
-// StreamData streams every row of a state to fn in data_index order, pivoting
-// the columnar (EAV) storage on the fly. Unlike FetchDataChunk it issues a
-// single ordered cursor query and never materializes the whole state in memory,
-// and it is correct even when data_index has gaps (it does not assume a dense
-// 0..count range, which the offset-paged caller did). fn is invoked once per
-// logical row; returning an error from fn aborts the stream.
-func (da *BackendStorage) StreamData(stateID string, fn func(record map[string]any) error) error {
-	rows, err := da.DB.Raw(`
-		SELECT sc.name, sd.data_index,
-		       CASE WHEN sc.data_type = 'json'
-		            THEN sd.data_json_value::text
-		            ELSE sd.data_value
-		       END AS data_value
-		FROM state_column sc
-		LEFT JOIN state_column_data sd ON sc.id = sd.column_id
-		WHERE sc.state_id = ?
-		  AND sd.data_index IS NOT NULL
-		ORDER BY sd.data_index, sc.name
-	`, stateID).Rows()
-	if err != nil {
-		return fmt.Errorf("stream data chunk: %w", err)
-	}
-	defer rows.Close()
+// streamWindowSize is the width of the data_index range fetched per query in
+// StreamData. It bounds BOTH the per-query sort (Postgres pgsql_tmp spill) AND
+// the result the client driver buffers, keeping StreamData's memory flat
+// regardless of state size. A single full-table ORDER BY (the previous
+// implementation) sorted the whole EAV result — carrying large data_value
+// payloads — which spilled the DB's temp space and was accumulated client-side
+// by the driver, OOMing the migrator.
+const streamWindowSize = 1000
 
-	var (
-		curRec   map[string]any
-		curIndex int64
-		have     bool
-	)
-	for rows.Next() {
-		var r ChunkRow
-		if err := da.DB.ScanRows(rows, &r); err != nil {
-			return fmt.Errorf("scan stream row: %w", err)
+// StreamData streams every row of a state to fn in data_index order, pivoting
+// the columnar (EAV) storage on the fly. It pages through the state in fixed
+// data_index range windows of streamWindowSize, so neither the database nor the
+// client ever materializes the whole state. Each window owns a contiguous,
+// non-overlapping index range, so every logical row's columns land in exactly
+// one window (never split), and gaps in data_index simply yield emptier
+// windows. fn is invoked once per logical row, in ascending data_index order;
+// returning an error aborts.
+func (da *BackendStorage) StreamData(stateID string, fn func(record map[string]any) error) error {
+	// One cheap bounds query to size the loop. NULL max → the state has no data.
+	var bounds struct {
+		MinIdx *int64 `gorm:"column:min_idx"`
+		MaxIdx *int64 `gorm:"column:max_idx"`
+	}
+	if err := da.DB.Raw(`
+		SELECT MIN(scd.data_index) AS min_idx, MAX(scd.data_index) AS max_idx
+		FROM state_column sc
+		JOIN state_column_data scd ON sc.id = scd.column_id
+		WHERE sc.state_id = ? AND scd.data_index IS NOT NULL
+	`, stateID).Scan(&bounds).Error; err != nil {
+		return fmt.Errorf("stream data bounds: %w", err)
+	}
+	if bounds.MaxIdx == nil {
+		return nil // no data
+	}
+
+	for start := *bounds.MinIdx; start <= *bounds.MaxIdx; start += streamWindowSize {
+		end := start + streamWindowSize // exclusive upper bound
+
+		// One bounded window: all cells whose data_index is in [start, end),
+		// ordered row-major (data_index first) so the pivot can emit on the index
+		// boundary. The sort and the returned rows are bounded to this window.
+		var batch []ChunkRow
+		// Column-major order (column_id, data_index) matches the
+		// (column_id, data_index) index, so this is an index range-scan with NO
+		// server-side sort — the fast path. The data_index range predicate bounds
+		// it to one window.
+		if err := da.DB.Raw(`
+			SELECT sc.name, scd.data_index,
+			       CASE WHEN sc.data_type = 'json'
+			            THEN scd.data_json_value::text
+			            ELSE scd.data_value
+			       END AS data_value
+			FROM state_column sc
+			JOIN state_column_data scd ON sc.id = scd.column_id
+			WHERE sc.state_id = ?
+			  AND scd.data_index >= ? AND scd.data_index < ?
+			ORDER BY scd.column_id, scd.data_index
+		`, stateID, start, end).Scan(&batch).Error; err != nil {
+			return fmt.Errorf("stream data window [%d,%d): %w", start, end, err)
 		}
-		// Rows are ordered by data_index, so a change of index closes the
-		// current record and starts the next one.
-		if !have || r.DataIndex != curIndex {
-			if have {
-				if err := fn(curRec); err != nil {
-					return err
-				}
+
+		// Pivot in memory. The window is bounded (streamWindowSize indices), so
+		// grouping its cells by data_index and sorting the keys is cheap — and it
+		// frees the DB from a data_index-major sort. A record is created for any
+		// data_index that has cells (even if all values are NULL); absent columns
+		// simply stay out of the map (sparse rows + sparse columns both handled).
+		recs := make(map[int64]map[string]any, streamWindowSize)
+		for i := range batch {
+			r := batch[i]
+			rec := recs[r.DataIndex]
+			if rec == nil {
+				rec = make(map[string]any)
+				recs[r.DataIndex] = rec
 			}
-			curRec = make(map[string]any)
-			curIndex = r.DataIndex
-			have = true
+			if r.DataValue != nil {
+				rec[r.Name] = *r.DataValue
+			}
 		}
-		if r.DataValue != nil {
-			curRec[r.Name] = *r.DataValue
+
+		// Emit logical rows in ascending data_index order.
+		indices := make([]int64, 0, len(recs))
+		for idx := range recs {
+			indices = append(indices, idx)
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("stream rows: %w", err)
-	}
-	if have {
-		if err := fn(curRec); err != nil {
-			return err
+		sort.Slice(indices, func(i, j int) bool { return indices[i] < indices[j] })
+		for _, idx := range indices {
+			if err := fn(recs[idx]); err != nil {
+				return err
+			}
 		}
+		// recs and batch are eligible for GC before the next window's query.
 	}
 	return nil
 }
