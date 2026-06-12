@@ -19,6 +19,12 @@ func NewBackend(dsn string) *BackendStorage {
 	}
 }
 
+// NewBackendFromAccess reuses an existing connection pool (so a service that
+// already holds a *repository.Access doesn't open a second pool).
+func NewBackendFromAccess(access *repository.Access) *BackendStorage {
+	return &BackendStorage{Access: access}
+}
+
 // NewBackendStorage creates a BackendStorage from an existing gorm.DB instance
 func NewBackendStorage(db *gorm.DB) *BackendStorage {
 	return &BackendStorage{

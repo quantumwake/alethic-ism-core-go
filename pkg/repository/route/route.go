@@ -15,6 +15,12 @@ func NewBackend(dsn string) *BackendStorage {
 	}
 }
 
+// NewBackendFromAccess reuses an existing connection pool (so a service that
+// already holds a *repository.Access doesn't open a second pool).
+func NewBackendFromAccess(access *repository.Access) *BackendStorage {
+	return &BackendStorage{Access: access}
+}
+
 // FindRouteByID methods
 func (da *BackendStorage) FindRouteByID(id string) (*processor.State, error) {
 	var processorState processor.State

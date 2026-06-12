@@ -12,6 +12,12 @@ func NewBackend(dsn string) *BackendStorage {
 	}
 }
 
+// NewBackendFromAccess reuses an existing connection pool (so a service that
+// already holds a *repository.Access doesn't open a second pool).
+func NewBackendFromAccess(access *repository.Access) *BackendStorage {
+	return &BackendStorage{Access: access}
+}
+
 // FindNodesByProjectID returns all workflow nodes for a project.
 func (da *BackendStorage) FindNodesByProjectID(projectID string) ([]Node, error) {
 	var nodes []Node
